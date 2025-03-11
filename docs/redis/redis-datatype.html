@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis数据类型实现原理与应用场景</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@chinese-fonts/yozai@2.0.1/dist/Yozai-Regular/result.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Yozai', 'Roboto', sans-serif; }
+        .code-block { background-color: #f8f9fa; border-radius: 6px; padding: 1rem; }
+        .head-bg { background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%); }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 术语定义 -->
+        <section class="mb-12">
+            <div class="head-bg p-6 rounded-lg shadow-lg mb-8">
+                <h1 class="text-3xl font-bold mb-4">Redis数据类型详解</h1>
+                <p class="text-gray-800">Redis (Remote Dictionary Server) 是一个开源的内存数据结构存储系统，可用作数据库、缓存和消息中间件。</p>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">核心数据类型概览</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 border rounded-lg">
+                        <h3 class="font-bold text-xl mb-2">String (字符串)</h3>
+                        <p>二进制安全的字符串，最大支持512MB</p>
+                    </div>
+                    <div class="p-4 border rounded-lg">
+                        <h3 class="font-bold text-xl mb-2">List (列表)</h3>
+                        <p>基于双向链表实现的有序字符串列表</p>
+                    </div>
+                    <div class="p-4 border rounded-lg">
+                        <h3 class="font-bold text-xl mb-2">Hash (哈希)</h3>
+                        <p>字符串字段和字符串值之间的映射表</p>
+                    </div>
+                    <div class="p-4 border rounded-lg">
+                        <h3 class="font-bold text-xl mb-2">Set (集合)</h3>
+                        <p>无序的字符串集合，元素不重复</p>
+                    </div>
+                    <div class="p-4 border rounded-lg">
+                        <h3 class="font-bold text-xl mb-2">Sorted Set (有序集合)</h3>
+                        <p>带有分数的有序字符串集合</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 实现细节与优化 -->
+        <section class="mb-12">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">内部实现机制</h2>
+                <div class="mermaid">
+                    graph TD
+                        A[Redis Object] --> B[String]
+                        A --> C[List]
+                        A --> D[Hash]
+                        A --> E[Set]
+                        A --> F[Sorted Set]
+                        B --> G[Simple Dynamic String]
+                        C --> H[Doubly Linked List]
+                        D --> I[Hash Table]
+                        E --> J[Hash Table for Unique Elements]
+                        F --> K[Skip List + Hash Table]
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold mb-4">数据结构实现细节</h3>
+                    <div class="code-block">
+                        <pre>
+typedef struct redisObject {
+    unsigned type:4;    // 数据类型
+    unsigned encoding:4;// 编码方式
+    void *ptr;         // 数据指针
+    int refcount;      // 引用计数
+    unsigned lru;      // 最后访问时间
+} robj;
+                        </pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 应用场景 -->
+        <section class="mb-12">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">应用场景分析</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">String应用场景</h3>
+                        <ul class="list-disc pl-5">
+                            <li>缓存用户信息</li>
+                            <li>计数器（文章阅读量）</li>
+                            <li>分布式锁</li>
+                        </ul>
+                    </div>
+                    <div class="border p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">List应用场景</h3>
+                        <ul class="list-disc pl-5">
+                            <li>消息队列</li>
+                            <li>最新文章列表</li>
+                            <li>社交网络动态流</li>
+                        </ul>
+                    </div>
+                    <div class="border p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">Hash应用场景</h3>
+                        <ul class="list-disc pl-5">
+                            <li>用户信息字段存储</li>
+                            <li>购物车商品管理</li>
+                            <li>配置信息存储</li>
+                        </ul>
+                    </div>
+                    <div class="border p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">Set应用场景</h3>
+                        <ul class="list-disc pl-5">
+                            <li>标签系统</li>
+                            <li>用户关注/粉丝集合</li>
+                            <li>独立IP统计</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 比较分析 -->
+        <section class="mb-12">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">性能对比分析</h2>
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="border p-2">数据类型</th>
+                            <th class="border p-2">时间复杂度</th>
+                            <th class="border p-2">空间复杂度</th>
+                            <th class="border p-2">适用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="border p-2">String</td>
+                            <td class="border p-2">O(1)</td>
+                            <td class="border p-2">O(n)</td>
+                            <td class="border p-2">简单KV存储</td>
+                        </tr>
+                        <tr>
+                            <td class="border p-2">List</td>
+                            <td class="border p-2">O(1)头尾操作</td>
+                            <td class="border p-2">O(n)</td>
+                            <td class="border p-2">队列</td>
+                        </tr>
+                        <tr>
+                            <td class="border p-2">Hash</td>
+                            <td class="border p-2">O(1)</td>
+                            <td class="border p-2">O(n)</td>
+                            <td class="border p-2">对象存储</td>
+                        </tr>
+                        <tr>
+                            <td class="border p-2">Set</td>
+                            <td class="border p-2">O(1)</td>
+                            <td class="border p-2">O(n)</td>
+                            <td class="border p-2">去重统计</td>
+                        </tr>
+                        <tr>
+                            <td class="border p-2">Sorted Set</td>
+                            <td class="border p-2">O(log n)</td>
+                            <td class="border p-2">O(n)</td>
+                            <td class="border p-2">排行榜</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 总结 -->
+        <section class="mb-12">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">最佳实践总结</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">数据类型选择原则</h3>
+                        <ul class="list-decimal pl-5">
+                            <li>根据数据特征选择合适的类型</li>
+                            <li>考虑数据访问模式</li>
+                            <li>评估内存使用效率</li>
+                        </ul>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">性能优化建议</h3>
+                        <ul class="list-decimal pl-5">
+                            <li>合理设置过期时间</li>
+                            <li>避免大key</li>
+                            <li>使用批量操作提升性能</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 参考资料 -->
+        <section>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">参考资料</h2>
+                <ul class="list-disc pl-5">
+                    <li><a href="https://redis.io/docs/latest/develop/data-types/" class="text-blue-600 hover:underline">Redis官方文档：数据类型</a></li>
+                    <li><a href="https://redis.io/technology/data-structures/" class="text-blue-600 hover:underline">Redis数据结构实现</a></li>
+                    <li><a href="https://blog.devops.dev/redis-underlying-data-structure-everything-you-need-to-know-aafd99840c2b" class="text-blue-600 hover:underline">Redis底层数据结构详解</a></li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+        });
+    </script>
+</body>
+</html>
