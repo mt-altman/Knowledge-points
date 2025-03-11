@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL锁机制详解</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@chinese-fonts/yozai@2.0.1/dist/Yozai-Regular/result.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Yozai', 'Roboto', sans-serif; }
+        .gradient-header { background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%); }
+        code { background-color: #f7fafc; border-radius: 4px; padding: 2px 4px; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-4xl mx-auto p-6">
+        <header class="gradient-header p-6 rounded-lg shadow-lg mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">MySQL锁机制详解</h1>
+            <p class="text-gray-600 mt-2">深入理解MySQL中的各类锁实现及其应用</p>
+        </header>
+
+        <!-- 1. 术语定义 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">1. 锁的基本概念</h2>
+            <p class="mb-4">锁是数据库管理系统中用于管理并发访问的机制，确保数据的一致性和完整性。在MySQL中，锁主要用于以下目的：</p>
+            <ul class="list-disc pl-6 mb-4">
+                <li>防止并发操作导致的数据不一致</li>
+                <li>确保事务的隔离性要求</li>
+                <li>保护数据库对象的完整性</li>
+            </ul>
+        </section>
+
+        <!-- 2. 实现细节与优化 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">2. MySQL锁的分类</h2>
+            
+            <div class="mb-6">
+                <h3 class="text-xl font-bold mb-3">2.1 按粒度分类</h3>
+                <div class="mermaid">
+                    graph TD
+                        A[MySQL锁粒度] --> B[表级锁]
+                        A --> C[行级锁]
+                        A --> D[页级锁]
+                        B --> B1[表锁]
+                        B --> B2[元数据锁MDL]
+                        C --> C1[记录锁Record Lock]
+                        C --> C2[间隙锁Gap Lock]
+                        C --> C3[临键锁Next-key Lock]
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-bold mb-3">2.2 按兼容性分类</h3>
+                <table class="w-full border-collapse border border-gray-300">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="border p-2">锁类型</th>
+                            <th class="border p-2">说明</th>
+                            <th class="border p-2">兼容性</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="border p-2">共享锁(S)</td>
+                            <td class="border p-2">读锁</td>
+                            <td class="border p-2">可以与其他S锁兼容</td>
+                        </tr>
+                        <tr>
+                            <td class="border p-2">排他锁(X)</td>
+                            <td class="border p-2">写锁</td>
+                            <td class="border p-2">与其他锁都互斥</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 3. 应用场景 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">3. 主要锁类型及应用场景</h2>
+            
+            <div class="mb-6">
+                <h3 class="text-xl font-bold mb-3">3.1 InnoDB行级锁</h3>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="mb-2"><strong>Record Lock（记录锁）</strong></p>
+                    <pre class="bg-gray-100 p-2 rounded"><code>SELECT ... FOR UPDATE   # 获取排他锁
+SELECT ... LOCK IN SHARE MODE  # 获取共享锁</code></pre>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-bold mb-3">3.2 间隙锁(Gap Lock)</h3>
+                <p class="mb-4">锁定索引记录之间的间隙，防止幻读问题：</p>
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                    <p>适用场景：</p>
+                    <ul class="list-disc pl-6">
+                        <li>REPEATABLE READ隔离级别</li>
+                        <li>唯一索引的范围查询</li>
+                        <li>非唯一索引的等值查询</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 比较分析 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">4. 不同存储引擎的锁机制比较</h2>
+            <table class="w-full border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border p-2">特性</th>
+                        <th class="border p-2">InnoDB</th>
+                        <th class="border p-2">MyISAM</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border p-2">锁粒度</td>
+                        <td class="border p-2">行级锁</td>
+                        <td class="border p-2">表级锁</td>
+                    </tr>
+                    <tr>
+                        <td class="border p-2">事务支持</td>
+                        <td class="border p-2">支持</td>
+                        <td class="border p-2">不支持</td>
+                    </tr>
+                    <tr>
+                        <td class="border p-2">并发性能</td>
+                        <td class="border p-2">高</td>
+                        <td class="border p-2">低</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 5. 总结 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">5. 实践建议和优化策略</h2>
+            <div class="mermaid">
+                mindmap
+                    root((MySQL锁优化))
+                        事务设计
+                            控制事务大小
+                            减少锁持有时间
+                        索引优化
+                            合理设计索引
+                            避免锁升级
+                        并发控制
+                            选择合适的隔离级别
+                            避免死锁
+                        业务优化
+                            合理设计业务流程
+                            减少锁冲突
+            </div>
+        </section>
+
+        <!-- 6. 参考资料 -->
+        <section class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">6. 参考文献</h2>
+            <ul class="list-decimal pl-6">
+                <li class="mb-2">
+                    <a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html" class="text-blue-600 hover:underline">
+                        MySQL 8.0 Reference Manual - InnoDB Locking
+                    </a>
+                </li>
+                <li class="mb-2">
+                    <a href="https://docs.oracle.com/cd/E17952_01/mysql-8.0-en/innodb-locking-transaction-model.html" class="text-blue-600 hover:underline">
+                        InnoDB Locking and Transaction Model
+                    </a>
+                </li>
+            </ul>
+        </section>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+</body>
+</html>
