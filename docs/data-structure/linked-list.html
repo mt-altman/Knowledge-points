@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>链表与双向链表详解</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@chinese-fonts/yozai@2.0.1/dist/Yozai-Regular/result.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Yozai', 'Roboto', sans-serif;
+            line-height: 1.6;
+            background-color: #f9fafb;
+            color: #1a202c;
+        }
+        .header-bg {
+            background: linear-gradient(120deg, #4338ca, #3b82f6);
+        }
+        code {
+            font-family: Consolas, Monaco, 'Andale Mono', monospace;
+/*            background-color: #edf2f7;*/
+            padding: 0.1em 0.4em;
+            border-radius: 0.3em;
+        }
+        pre {
+            background-color: #1a202c;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+        .term-container {
+            position: relative;
+        }
+        .term-definition {
+            display: none;
+            position: absolute;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            width: 300px;
+            color: #1a202c;
+        }
+        .term:hover + .term-definition {
+            display: block;
+        }
+        .term {
+            text-decoration: underline dotted;
+            cursor: pointer;
+            color: #4338ca;
+        }
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .compare-table th {
+            background-color: #e5edff;
+        }
+        .compare-table th, .compare-table td {
+            border: 1px solid #cbd5e0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .compare-table tr:nth-child(even) {
+            background-color: #f7fafc;
+        }
+        .card {
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .progress-container {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #e2e8f0;
+            z-index: 1000;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #4f46e5;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .section-nav {
+            position: sticky;
+            top: 1rem;
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
+        }
+        .timeline-item {
+            padding-left: 2rem;
+            position: relative;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background-color: #e2e8f0;
+        }
+        .timeline-item:last-child::before {
+            height: 1.5rem;
+        }
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 1.5rem;
+            height: 1rem;
+            width: 1rem;
+            border-radius: 50%;
+            background-color: #3b82f6;
+        }
+        .tag {
+            display: inline-block;
+            background-color: #e5edff;
+            color: #4338ca;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    
+    <header class="header-bg text-white py-16 px-4 md:px-8 mb-8">
+        <div class="container mx-auto max-w-6xl">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">链表与双向链表详解</h1>
+            <p class="text-xl md:w-3/4">深入剖析链表数据结构的原理、实现与应用，从基础概念到高级操作的全面指南</p>
+        </div>
+    </header>
+    
+    <div class="container mx-auto max-w-6xl px-4 md:px-8 mb-16 flex flex-wrap md:flex-nowrap">
+        <!-- 侧边导航 -->
+        <aside class="w-full md:w-1/4 md:mr-8 mb-8 md:mb-0">
+            <div class="section-nav bg-white p-4 rounded-lg shadow">
+                <h3 class="text-lg font-bold mb-4 pb-2 border-b border-gray-200">目录</h3>
+                <ul class="space-y-2">
+                    <li><a href="#definition" class="text-indigo-600 hover:text-indigo-800">链表定义与基本概念</a></li>
+                    <li><a href="#implementation" class="text-indigo-600 hover:text-indigo-800">实现细节与优化</a></li>
+                    <li><a href="#applications" class="text-indigo-600 hover:text-indigo-800">应用场景</a></li>
+                    <li><a href="#comparison" class="text-indigo-600 hover:text-indigo-800">比较分析</a></li>
+                    <li><a href="#summary" class="text-indigo-600 hover:text-indigo-800">总结</a></li>
+                    <li><a href="#references" class="text-indigo-600 hover:text-indigo-800">参考资料</a></li>
+                </ul>
+            </div>
+        </aside>
+        
+        <!-- 主要内容 -->
+        <main class="w-full md:w-3/4">
+            <section id="definition" class="mb-16">
+                <div class="card p-6 mb-8">
+                    <h2 class="text-3xl font-bold mb-6 text-indigo-700 flex items-center">
+                        <i-lucide-list-tree class="mr-2 inline" width="32" height="32"></i-lucide-list-tree>
+                        链表定义与基本概念
+                    </h2>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">什么是链表？</h3>
+                        <p class="mb-4">链表是一种通过<span class="term">节点</span>存储数据的<span class="term">线性数据结构</span>，其中每个节点包含两个部分：</p>
+                        <div class="term-container">
+                            <span class="term">节点</span>
+                            <div class="term-definition">节点是链表中的基本单元，包含数据域和指针域，用于存储数据并指向其他节点。</div>
+                        </div>
+                        <div class="term-container">
+                            <span class="term">线性数据结构</span>
+                            <div class="term-definition">线性数据结构是一种元素按照线性排序的结构，其中元素之间存在一对一的顺序关系。</div>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-6 mt-4">
+                            <div class="md:w-1/2 mb-4 md:mb-0">
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li><strong>数据域（Data Field）</strong>：存储节点的实际数据。</li>
+                                    <li><strong>指针域（Pointer Field）</strong>：存储指向下一个节点的指针。</li>
+                                </ul>
+                                <p class="mt-4">链表的特点是<strong>节点在内存中不连续存储</strong>，而是通过指针串联起来形成一个数据序列。</p>
+                            </div>
+                            <div class="md:w-1/2 bg-gray-100 p-4 rounded-lg">
+                                <pre class="text-sm text-center">
+┌───────────────┐      ┌───────────────┐      ┌───────────────┐
+│    节点 1      │      │    节点 2      │      │    节点 3      │
+│ ┌─────┬─────┐ │      │ ┌─────┬─────┐ │      │ ┌─────┬─────┐ │
+│ │数据1 │ 指针│─┼──────┼▶│数据2 │ 指针│─┼──────┼▶│数据3 │ NULL│ │
+│ └─────┴─────┘ │      │ └─────┴─────┘ │      │ └─────┴─────┘ │
+└───────────────┘      └───────────────┘      └───────────────┘</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表的分类</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">1. 单向链表</h4>
+                                <p class="mb-2">最基本的链表形式，每个节点只有一个指向下一个节点的指针。</p>
+                                <div class="bg-gray-100 p-2 rounded">
+                                    <pre class="text-sm">
+节点 → 节点 → 节点 → NULL</pre>
+                                </div>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">2. 双向链表</h4>
+                                <p class="mb-2">每个节点有两个指针，分别指向前一个节点和后一个节点。</p>
+                                <div class="bg-gray-100 p-2 rounded">
+                                    <pre class="text-sm">
+NULL ← 节点 ⇄ 节点 ⇄ 节点 → NULL</pre>
+                                </div>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">3. 循环链表</h4>
+                                <p class="mb-2">末尾节点指向头节点，形成一个闭环结构。</p>
+                                <div class="bg-gray-100 p-2 rounded">
+                                    <pre class="text-sm">
+┌────────────────────┐
+↓                    │
+节点 → 节点 → 节点 → 节点┘</pre>
+                                </div>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">4. 双向循环链表</h4>
+                                <p class="mb-2">结合双向链表和循环链表的特点，头尾互连。</p>
+                                <div class="bg-gray-100 p-2 rounded">
+                                    <pre class="text-sm">
+┌───────────────────────┐
+│                       ↓
+节点 ⇄ 节点 ⇄ 节点 ⇄ 节点
+↑                       │
+└───────────────────────┘</pre>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6">
+                            <h4 class="font-bold text-lg mb-2 text-indigo-600">链表按照是否有头节点的分类</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h5 class="font-semibold mb-2">无头节点链表</h5>
+                                    <p>第一个节点直接存储有效数据，操作时需要特殊处理第一个节点。</p>
+                                </div>
+                                <div>
+                                    <h5 class="font-semibold mb-2">带头节点链表</h5>
+                                    <p>首节点为头节点，不存储有效数据，简化了操作的一致性。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">双向链表详解</h3>
+                        <p class="mb-4">双向链表（Doubly Linked List）是链表的一种重要变体，与单向链表相比，双向链表的每个节点除了存储数据和指向下一节点的指针外，还增加了指向前一个节点的指针。</p>
+                        
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                            <div class="md:w-1/2 mb-4 md:mb-0 pr-0 md:pr-4">
+                                <h4 class="font-bold text-lg mb-2">双向链表节点结构</h4>
+                                <ul class="list-disc pl-5 space-y-2">
+                                    <li><strong>数据域（Data Field）</strong>：存储节点的实际数据。</li>
+                                    <li><strong>前指针域（Prev Pointer）</strong>：指向前一个节点。</li>
+                                    <li><strong>后指针域（Next Pointer）</strong>：指向后一个节点。</li>
+                                </ul>
+                            </div>
+                            <div class="md:w-1/2 bg-gray-100 p-3 rounded-lg">
+                                <pre class="text-sm text-center">
+┌────────────────────────────────────────┐
+│               节点结构                  │
+│  ┌─────────┬─────────┬─────────┐       │
+│  │ prev    │  data   │  next   │       │
+│  │ pointer │  field  │ pointer │       │
+│  └─────────┴─────────┴─────────┘       │
+└────────────────────────────────────────┘</pre>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h4 class="font-bold text-lg mb-2">双向链表的结构示意图</h4>
+                            <div class="bg-gray-100 p-4 rounded-lg overflow-x-auto">
+                                <pre class="text-sm">
+NULL ←─┐     ┌──→ ┌──→ ┌──→ NULL
+       │     │    │    │
+    ┌─────┬─────┬─────┐
+    │ PREV│DATA1│NEXT │
+    └──┼──┴──┬──┴──┼──┘
+       │     │    │
+       │  ┌──↓──┬─────┬──↑──┐
+       └──┤PREV │DATA2│NEXT │
+          └─────┴──┬──┴─────┘
+                   │
+                ┌──↓──┬─────┬──↑──┐
+                │PREV │DATA3│NEXT │
+                └─────┴─────┴─────┘</pre>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h4 class="font-bold text-lg mb-2">带头双向循环链表</h4>
+                            <p class="mb-4">在实际应用中，最常用的是带头双向循环链表，其特点如下：</p>
+                            <ul class="list-disc pl-5 space-y-2 mb-4">
+                                <li>拥有一个不存储有效数据的头节点</li>
+                                <li>最后一个节点的next指针指向头节点</li>
+                                <li>头节点的prev指针指向最后一个节点</li>
+                                <li>形成了一个真正意义上的双向循环结构</li>
+                            </ul>
+                            <div class="bg-gray-100 p-4 rounded-lg overflow-x-auto">
+                                <pre class="text-sm">
+  ┌──────────────────────────────────────────────┐
+  │                                              │
+  ↓                                              │
+┌─────┬─────┬─────┐   ┌─────┬─────┬─────┐   ┌─────┬─────┬─────┐
+│PREV │HEAD │NEXT │←──│PREV │DATA1│NEXT │←──│PREV │DATA2│NEXT │
+└──┬──┴─────┴──↑──┘   └──↑──┴─────┴──┬──┘   └──↑──┴─────┴──┬──┘
+   │            │        │            │        │            │
+   └────────────┘        └────────────┘        └────────────┘</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="implementation" class="mb-16">
+                <div class="card p-6 mb-8">
+                    <h2 class="text-3xl font-bold mb-6 text-indigo-700 flex items-center">
+                        <i-lucide-code class="mr-2 inline" width="32" height="32"></i-lucide-code>
+                        实现细节与优化
+                    </h2>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表的基本实现</h3>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-4">单链表节点定义 (C语言)</h4>
+                            <pre><code class="language-c">// 定义单链表节点结构
+typedef struct ListNode {
+    int data;              // 数据域
+    struct ListNode* next; // 指针域
+} ListNode;</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-4">双向链表节点定义 (C语言)</h4>
+                            <pre><code class="language-c">// 定义双向链表节点结构
+typedef struct DListNode {
+    int data;               // 数据域
+    struct DListNode* prev; // 前指针域
+    struct DListNode* next; // 后指针域
+} DListNode;</code></pre>
+                        </div>
+
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-4">Java中的链表实现</h4>
+                            <pre><code class="language-java">// 单链表节点
+class ListNode {
+    int val;
+    ListNode next;
+    
+    ListNode(int val) {
+        this.val = val;
+        this.next = null;
+    }
+}
+
+// 双向链表节点
+class DoublyListNode {
+    int val;
+    DoublyListNode prev;
+    DoublyListNode next;
+    
+    DoublyListNode(int val) {
+        this.val = val;
+        this.prev = null;
+        this.next = null;
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表生命周期</h3>
+                        
+                        <div class="mb-4">
+                            <p class="mb-4">链表的生命周期包括创建、各种操作以及最终的销毁。以下是链表生命周期的流程图：</p>
+                            <div class="bg-white p-4 rounded-lg shadow-inner">
+                                <div class="mermaid">
+                                    graph TD
+                                    A[开始] --> B[创建链表/初始化]
+                                    B --> C[插入节点]
+                                    B --> D[删除节点]
+                                    B --> E[查询节点]
+                                    B --> F[修改节点]
+                                    C --> G[销毁链表]
+                                    D --> G
+                                    E --> G
+                                    F --> G
+                                    G --> H[结束]
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">单链表基本操作实现</h3>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">1. 创建空链表</h4>
+                            <pre><code class="language-c">// 创建一个空的单链表
+ListNode* createList() {
+    return NULL; // 空链表的头指针为NULL
+}</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">2. 头插法插入节点</h4>
+                            <pre><code class="language-c">// 在链表头部插入节点
+ListNode* insertAtHead(ListNode* head, int data) {
+    // 创建新节点
+    ListNode* newNode = (ListNode*)malloc(sizeof(ListNode));
+    if (newNode == NULL) {
+        printf("内存分配失败\n");
+        return head;
+    }
+    
+    // 初始化新节点
+    newNode->data = data;
+    newNode->next = head;
+    
+    // 返回新的头节点
+    return newNode;
+}</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">3. 尾插法插入节点</h4>
+                            <pre><code class="language-c">// 在链表尾部插入节点
+ListNode* insertAtTail(ListNode* head, int data) {
+    // 创建新节点
+    ListNode* newNode = (ListNode*)malloc(sizeof(ListNode));
+    if (newNode == NULL) {
+        printf("内存分配失败\n");
+        return head;
+    }
+    
+    // 初始化新节点
+    newNode->data = data;
+    newNode->next = NULL;
+    
+    // 如果链表为空，直接返回新节点作为头节点
+    if (head == NULL) {
+        return newNode;
+    }
+    
+    // 找到尾节点
+    ListNode* current = head;
+    while (current->next != NULL) {
+        current = current->next;
+    }
+    
+    // 将新节点连接到尾节点后
+    current->next = newNode;
+    
+    return head;
+}</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">4. 删除节点</h4>
+                            <pre><code class="language-c">// 删除指定值的节点
+ListNode* deleteNode(ListNode* head, int data) {
+    // 如果链表为空，直接返回
+    if (head == NULL) {
+        return NULL;
+    }
+    
+    // 如果头节点就是要删除的节点
+    if (head->data == data) {
+        ListNode* temp = head;
+        head = head->next;
+        free(temp);
+        return head;
+    }
+    
+    // 查找要删除的节点
+    ListNode* current = head;
+    while (current->next != NULL && current->next->data != data) {
+        current = current->next;
+    }
+    
+    // 如果找到了要删除的节点
+    if (current->next != NULL) {
+        ListNode* temp = current->next;
+        current->next = temp->next;
+        free(temp);
+    }
+    
+    return head;
+}</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">5. 查找节点</h4>
+                            <pre><code class="language-c">// 查找指定值的节点
+ListNode* findNode(ListNode* head, int data) {
+    ListNode* current = head;
+    
+    // 遍历链表查找
+    while (current != NULL) {
+        if (current->data == data) {
+            return current; // 找到节点，返回节点指针
+        }
+        current = current->next;
+    }
+    
+    return NULL; // 未找到节点，返回NULL
+}</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">6. 销毁链表</h4>
+                            <pre><code class="language-c">// 销毁链表，释放所有内存
+void destroyList(ListNode* head) {
+    ListNode* current = head;
+    ListNode* next;
+    
+    // 逐个释放节点内存
+    while (current != NULL) {
+        next = current->next;
+        free(current);
+        current = next;
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">双向链表基本操作实现</h3>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">1. 创建带头节点的双向循环链表</h4>
+                            <pre><code class="language-c">// 创建带头节点的双向循环链表
+DListNode* createDList() {
+    // 分配头节点内存
+    DListNode* head = (DListNode*)malloc(sizeof(DListNode));
+    if (head == NULL) {
+        printf("内存分配失败\n");
+        return NULL;
+    }
+    
+    // 初始化头节点，形成自环
+    head->data = 0;  // 头节点数据域通常不使用
+    head->prev = head;
+    head->next = head;
+    
+    return head;
+}</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">2. 在指定节点后插入新节点</h4>
+                            <pre><code class="language-c">// 在pos节点后插入新节点
+void insertAfter(DListNode* pos, int data) {
+    if (pos == NULL) {
+        return;
+    }
+    
+    // 创建新节点
+    DListNode* newNode = (DListNode*)malloc(sizeof(DListNode));
+    if (newNode == NULL) {
+        printf("内存分配失败\n");
+        return;
+    }
+    
+    // 初始化新节点
+    newNode->data = data;
+    
+    // 调整指针关系，插入新节点
+    newNode->next = pos->next;
+    newNode->prev = pos;
+    pos->next->prev = newNode;
+    pos->next = newNode;
+}</code></pre>
+                            <h4 class="font-bold text-lg mb-2">3. 在指定节点前插入新节点</h4>
+                            <pre><code class="language-c">// 在pos节点前插入新节点
+void insertBefore(DListNode* pos, int data) {
+    if (pos == NULL) {
+        return;
+    }
+    
+    // 复用insertAfter，在前一个节点之后插入等价于在当前节点之前插入
+    insertAfter(pos->prev, data);
+}</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">4. 删除指定节点</h4>
+                            <pre><code class="language-c">// 删除链表中的节点（不包括头节点）
+void deleteNode(DListNode* node) {
+    if (node == NULL || node->next == node) {
+        // 节点为空或者是自环（可能是头节点）
+        return;
+    }
+    
+    // 调整前后节点的指针，跳过要删除的节点
+    node->prev->next = node->next;
+    node->next->prev = node->prev;
+    
+    // 释放节点内存
+    free(node);
+}</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">5. 查找节点</h4>
+                            <pre><code class="language-c">// 在双向链表中查找指定值的节点
+DListNode* findNode(DListNode* head, int data) {
+    if (head == NULL) {
+        return NULL;
+    }
+    
+    // 从头节点的下一个节点开始查找（跳过头节点）
+    DListNode* current = head->next;
+    
+    // 遍历链表，直到回到头节点
+    while (current != head) {
+        if (current->data == data) {
+            return current; // 找到节点
+        }
+        current = current->next;
+    }
+    
+    return NULL; // 未找到节点
+}</code></pre>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-2">6. 销毁双向循环链表</h4>
+                            <pre><code class="language-c">// 销毁双向循环链表
+void destroyDList(DListNode* head) {
+    if (head == NULL) {
+        return;
+    }
+    
+    DListNode* current = head->next;
+    DListNode* next;
+    
+    // 释放所有非头节点内存
+    while (current != head) {
+        next = current->next;
+        free(current);
+        current = next;
+    }
+    
+    // 释放头节点内存
+    free(head);
+}</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表操作的时间复杂度分析</h3>
+                        
+                        <div class="overflow-x-auto mb-6">
+                            <table class="compare-table">
+                                <thead>
+                                    <tr>
+                                        <th>操作</th>
+                                        <th>单链表</th>
+                                        <th>双向链表</th>
+                                        <th>说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>访问头节点</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td>直接通过头指针访问</td>
+                                    </tr>
+                                    <tr>
+                                        <td>访问尾节点</td>
+                                        <td class="text-center">O(n)</td>
+                                        <td class="text-center">O(1)*</td>
+                                        <td>*如果维护尾指针或使用循环链表</td>
+                                    </tr>
+                                    <tr>
+                                        <td>在头部插入</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td>直接调整头指针</td>
+                                    </tr>
+                                    <tr>
+                                        <td>在尾部插入</td>
+                                        <td class="text-center">O(n)</td>
+                                        <td class="text-center">O(1)*</td>
+                                        <td>*如果维护尾指针或使用循环链表</td>
+                                    </tr>
+                                    <tr>
+                                        <td>在已知位置插入</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td>已知节点位置的情况下</td>
+                                    </tr>
+                                    <tr>
+                                        <td>在指定位置前插入</td>
+                                        <td class="text-center">O(n)</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td>双向链表可直接访问前节点</td>
+                                    </tr>
+                                    <tr>
+                                        <td>删除头节点</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td>直接调整头指针</td>
+                                    </tr>
+                                    <tr>
+                                        <td>删除尾节点</td>
+                                        <td class="text-center">O(n)</td>
+                                        <td class="text-center">O(1)*</td>
+                                        <td>*如果维护尾指针或使用循环链表</td>
+                                    </tr>
+                                    <tr>
+                                        <td>删除已知位置节点</td>
+                                        <td class="text-center">O(n)</td>
+                                        <td class="text-center">O(1)</td>
+                                        <td>单链表需要找前驱节点</td>
+                                    </tr>
+                                    <tr>
+                                        <td>查找元素</td>
+                                        <td class="text-center">O(n)</td>
+                                        <td class="text-center">O(n)</td>
+                                        <td>两者都需要遍历链表</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表常见优化策略</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">1. 使用哨兵节点（头节点）</h4>
+                                <p>使用不存储有效数据的哨兵节点，简化对链表边界情况的处理，统一操作逻辑。</p>
+                                <div class="mt-2">
+                                    <span class="tag">简化边界处理</span>
+                                    <span class="tag">减少特殊情况判断</span>
+                                </div>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">2. 使用快慢指针</h4>
+                                <p>在单链表中使用两个速度不同的指针，解决寻找中点、检测环等问题。</p>
+                                <div class="mt-2">
+                                    <span class="tag">查找中点</span>
+                                    <span class="tag">检测环</span>
+                                    <span class="tag">寻找倒数第k个节点</span>
+                                </div>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">3. 维护尾指针</h4>
+                                <p>额外维护指向链表最后一个节点的指针，优化尾部操作的时间复杂度。</p>
+                                <div class="mt-2">
+                                    <span class="tag">O(1)尾部插入</span>
+                                    <span class="tag">快速访问末尾</span>
+                                </div>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">4. 使用循环结构</h4>
+                                <p>通过将尾节点与头节点相连，形成循环结构，简化特定操作。</p>
+                                <div class="mt-2">
+                                    <span class="tag">无需特判空链表</span>
+                                    <span class="tag">快速访问首尾</span>
+                                </div>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">5. 跳跃链表</h4>
+                                <p>在原链表基础上增加多级索引，形成类似跳表结构，提高查找效率。</p>
+                                <div class="mt-2">
+                                    <span class="tag">优化查找效率</span>
+                                    <span class="tag">O(log n)查找</span>
+                                </div>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">6. 使用双向结构</h4>
+                                <p>通过增加prev指针，实现向前遍历，优化特定操作复杂度。</p>
+                                <div class="mt-2">
+                                    <span class="tag">O(1)删除已知节点</span>
+                                    <span class="tag">双向遍历</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="applications" class="mb-16">
+                <div class="card p-6 mb-8">
+                    <h2 class="text-3xl font-bold mb-6 text-indigo-700 flex items-center">
+                        <i-lucide-lightbulb class="mr-2 inline" width="32" height="32"></i-lucide-lightbulb>
+                        应用场景
+                    </h2>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表的典型应用场景</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">1. LRU缓存淘汰算法</h4>
+                                <p class="mb-2">LRU（最近最少使用）是一种常见的缓存淘汰策略，双向链表是其理想实现结构。</p>
+                                <div class="bg-gray-50 p-4 rounded-lg mt-auto">
+                                    <p class="text-sm text-gray-700">通过双向链表维护访问顺序，将最近访问的元素移动到链表头部，当缓存满时从尾部删除最久未使用的元素。</p>
+                                </div>
+                            </div>
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">2. 操作系统的进程调度</h4>
+                                <p class="mb-2">操作系统使用链表来管理进程队列，可以方便地进行进程的添加、删除和优先级调整。</p>
+                                <div class="bg-gray-50 p-4 rounded-lg mt-auto">
+                                    <p class="text-sm text-gray-700">链表结构允许调度器灵活管理进程状态，根据优先级和状态变化动态调整进程顺序。</p>
+                                </div>
+                            </div>
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">3. 多项式表示与计算</h4>
+                                <p class="mb-2">使用链表表示多项式，每个节点存储一个项的系数和指数，便于多项式的加减乘除运算。</p>
+                                <div class="bg-gray-50 p-4 rounded-lg mt-auto">
+                                    <p class="text-sm text-gray-700">链表结构使得多项式的合并、插入新项和删除项变得高效，适合处理稀疏多项式。</p>
+                                </div>
+                            </div>
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">4. 图的邻接表表示</h4>
+                                <p class="mb-2">链表是实现图的邻接表表示的基础，每个顶点维护一个链表，存储与其相邻的顶点。</p>
+                                <div class="bg-gray-50 p-4 rounded-lg mt-auto">
+                                    <p class="text-sm text-gray-700">相比邻接矩阵，邻接表更节省空间，特别适合稀疏图的存储和遍历。</p>
+                                </div>
+                            </div>
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">5. 撤销/重做功能</h4>
+                                <p class="mb-2">文本编辑器和图形软件中的撤销和重做功能，常使用双向链表实现操作历史记录。</p>
+                                <div class="bg-gray-50 p-4 rounded-lg mt-auto">
+                                    <p class="text-sm text-gray-700">双向链表方便在操作历史中前后移动，快速执行撤销和重做操作。</p>
+                                </div>
+                            </div>
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">6. 内存管理</h4>
+                                <p class="mb-2">操作系统使用链表管理空闲内存块，方便内存分配和回收。</p>
+                                <div class="bg-gray-50 p-4 rounded-lg mt-auto">
+                                    <p class="text-sm text-gray-700">链表结构适合管理大小不一的内存块，支持高效的分配、合并和分割操作。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">LRU缓存实现示例</h3>
+                        
+                        <p class="mb-4">LRU（Least Recently Used，最近最少使用）缓存是链表典型应用的代表，下面用双向链表和哈希表实现一个简单的LRU缓存：</p>
+                        
+                        <pre><code class="language-c">typedef struct {
+    int key;
+    int value;
+    struct LRUNode* prev;
+    struct LRUNode* next;
+} LRUNode;
+
+typedef struct {
+    int capacity;  // 缓存容量
+    int size;      // 当前大小
+    LRUNode* head; // 双向链表头节点（哨兵）
+    LRUNode* tail; // 双向链表尾节点（哨兵）
+    HashMap* map;  // 哈希表，用于O(1)查找节点
+} LRUCache;
+
+// 创建LRU缓存
+LRUCache* lRUCacheCreate(int capacity) {
+    LRUCache* cache = (LRUCache*)malloc(sizeof(LRUCache));
+    cache->capacity = capacity;
+    cache->size = 0;
+    
+    // 创建头尾哨兵节点
+    cache->head = (LRUNode*)malloc(sizeof(LRUNode));
+    cache->tail = (LRUNode*)malloc(sizeof(LRUNode));
+    
+    cache->head->prev = NULL;
+    cache->head->next = cache->tail;
+    cache->tail->prev = cache->head;
+    cache->tail->next = NULL;
+    
+    // 初始化哈希表
+    cache->map = createHashMap(capacity * 2); // 为避免哈希冲突，大小设为容量的2倍
+    
+    return cache;
+}
+
+// 在链表头部添加节点（表示最近使用）
+void addToHead(LRUCache* cache, LRUNode* node) {
+    node->next = cache->head->next;
+    node->prev = cache->head;
+    cache->head->next->prev = node;
+    cache->head->next = node;
+}
+
+// 删除指定节点
+void removeNode(LRUNode* node) {
+    node->prev->next = node->next;
+    node->next->prev = node->prev;
+}
+
+// 将节点移动到链表头部（表示最近使用）
+void moveToHead(LRUCache* cache, LRUNode* node) {
+    removeNode(node);
+    addToHead(cache, node);
+}
+
+// 删除链表尾部节点（表示最久未使用）
+LRUNode* removeTail(LRUCache* cache) {
+    LRUNode* node = cache->tail->prev;
+    removeNode(node);
+    return node;
+}
+
+// 获取缓存中的值，如果缓存中没有，返回-1
+int lRUCacheGet(LRUCache* cache, int key) {
+    LRUNode* node = (LRUNode*)getFromHashMap(cache->map, key);
+    if (node == NULL) {
+        return -1;  // 缓存未命中
+    }
+    
+    // 将访问的节点移动到链表头部（表示最近使用）
+    moveToHead(cache, node);
+    return node->value;
+}
+
+// 向缓存中添加或更新值
+void lRUCachePut(LRUCache* cache, int key, int value) {
+    LRUNode* node = (LRUNode*)getFromHashMap(cache->map, key);
+    
+    if (node != NULL) {
+        // 键已存在，更新值并移到链表头部
+        node->value = value;
+        moveToHead(cache, node);
+    } else {
+        // 键不存在，创建新节点
+        LRUNode* newNode = (LRUNode*)malloc(sizeof(LRUNode));
+        newNode->key = key;
+        newNode->value = value;
+        
+        // 添加到哈希表和链表头部
+        putInHashMap(cache->map, key, newNode);
+        addToHead(cache, newNode);
+        cache->size++;
+        
+        // 如果超出容量，删除链表尾部节点（最久未使用）
+        if (cache->size > cache->capacity) {
+            LRUNode* tail = removeTail(cache);
+            removeFromHashMap(cache->map, tail->key);
+            free(tail);
+            cache->size--;
+        }
+    }
+}
+
+// 释放LRU缓存资源
+void lRUCacheFree(LRUCache* cache) {
+    // 释放链表中的所有节点
+    LRUNode* current = cache->head->next;
+    while (current != cache->tail) {
+        LRUNode* temp = current;
+        current = current->next;
+        free(temp);
+    }
+    
+    // 释放头尾哨兵节点
+    free(cache->head);
+    free(cache->tail);
+    
+    // 释放哈希表
+    freeHashMap(cache->map);
+    
+    // 释放缓存结构
+    free(cache);
+}</code></pre>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">实际使用示例与技巧</h3>
+                        
+                        <div class="timeline-item mb-6">
+                            <h4 class="font-bold text-lg text-indigo-700">循环链表解决约瑟夫环问题</h4>
+                            <p class="mb-2">约瑟夫环是一个著名的问题：n个人围成一圈，从第一个人开始报数，报到m的人出列，下一个人重新从1开始报数，问最后剩下的人是谁。</p>
+                            <pre><code class="language-c">// 使用循环链表解决约瑟夫环问题
+int josephus(int n, int m) {
+    // 创建循环链表
+    ListNode* head = NULL;
+    ListNode* tail = NULL;
+    
+    // 构建包含n个节点的循环链表
+    for (int i = 1; i <= n; i++) {
+        ListNode* newNode = (ListNode*)malloc(sizeof(ListNode));
+        newNode->data = i;
+        
+        if (head == NULL) {
+            head = newNode;
+            tail = newNode;
+        } else {
+            tail->next = newNode;
+            tail = newNode;
+        }
+        
+        // 形成循环
+        tail->next = head;
+    }
+    
+    // 只有一个人的特殊情况
+    if (n == 1) {
+        free(head);
+        return 1;
+    }
+    
+    ListNode* current = head;
+    ListNode* prev = tail; // 指向当前节点的前一个节点
+    
+    // 模拟报数过程
+    while (current->next != current) { // 直到只剩一个节点
+        // 报m-1次数（因为要删除第m个人）
+        for (int i = 1; i < m; i++) {
+            prev = current;
+            current = current->next;
+        }
+        
+        // 删除当前节点（报到m的人）
+        prev->next = current->next;
+        ListNode* temp = current;
+        current = current->next; // 移动到下一个人
+        free(temp);
+    }
+    
+    int result = current->data;
+    free(current); // 释放最后一个节点
+    
+    return result;
+}</code></pre>
+                        </div>
+                        
+                        <div class="timeline-item mb-6">
+                            <h4 class="font-bold text-lg text-indigo-700">使用快慢指针检测链表中的环</h4>
+                            <p class="mb-2">快慢指针是解决链表环检测的经典技巧，快指针每次移动两步，慢指针每次移动一步，如果存在环，两个指针最终会相遇。</p>
+                            <pre><code class="language-c">// 检测链表是否有环
+bool hasCycle(ListNode* head) {
+    if (head == NULL || head->next == NULL) {
+        return false;
+    }
+    
+    ListNode* slow = head;
+    ListNode* fast = head;
+    
+    while (fast != NULL && fast->next != NULL) {
+        slow = slow->next;       // 慢指针每次走一步
+        fast = fast->next->next; // 快指针每次走两步
+        
+        if (slow == fast) {  // 如果相遇，说明有环
+            return true;
+        }
+    }
+    
+    return false; // 如果fast到达了链表尾部，说明没有环
+}</code></pre>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <h4 class="font-bold text-lg text-indigo-700">使用链表实现多项式加法</h4>
+                            <p class="mb-2">链表是表示多项式的理想数据结构，特别是对于稀疏多项式，每个节点可以存储一个项的系数和指数。</p>
+                            <pre><code class="language-c">// 多项式节点
+typedef struct PolyNode {
+    int coef;  // 系数
+    int exp;   // 指数
+    struct PolyNode* next;
+} PolyNode;
+
+// 多项式加法
+PolyNode* addPolynomials(PolyNode* poly1, PolyNode* poly2) {
+    PolyNode* result = NULL;
+    PolyNode* tail = NULL;
+    PolyNode* p1 = poly1;
+    PolyNode* p2 = poly2;
+    
+    // 创建头节点
+    result = (PolyNode*)malloc(sizeof(PolyNode));
+    result->next = NULL;
+    tail = result;
+    
+    // 同时遍历两个多项式
+    while (p1 != NULL && p2 != NULL) {
+        PolyNode* newNode = (PolyNode*)malloc(sizeof(PolyNode));
+        
+        if (p1->exp > p2->exp) {
+            // p1指数更大，复制p1节点
+            newNode->coef = p1->coef;
+            newNode->exp = p1->exp;
+            p1 = p1->next;
+        } else if (p1->exp < p2->exp) {
+            // p2指数更大，复制p2节点
+            newNode->coef = p2->coef;
+            newNode->exp = p2->exp;
+            p2 = p2->next;
+        } else {
+            // 指数相等，系数相加
+            int sumCoef = p1->coef + p2->coef;
+            if (sumCoef != 0) {
+                // 只有和不为0时才创建节点
+                newNode->coef = sumCoef;
+                newNode->exp = p1->exp;
+            } else {
+                // 系数和为0，跳过此项
+                free(newNode);
+                p1 = p1->next;
+                p2 = p2->next;
+                continue;
+            }
+            p1 = p1->next;
+            p2 = p2->next;
+        }
+        
+        // 添加到结果链表
+        newNode->next = NULL;
+        tail->next = newNode;
+        tail = newNode;
+    }
+    
+    // 处理剩余节点
+    PolyNode* remaining = (p1 != NULL) ? p1 : p2;
+    while (remaining != NULL) {
+        PolyNode* newNode = (PolyNode*)malloc(sizeof(PolyNode));
+        newNode->coef = remaining->coef;
+        newNode->exp = remaining->exp;
+        newNode->next = NULL;
+        
+        tail->next = newNode;
+        tail = newNode;
+        remaining = remaining->next;
+    }
+    
+    // 返回结果多项式（跳过头节点）
+    PolyNode* temp = result;
+    result = result->next;
+    free(temp);
+    
+    return result;
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="comparison" class="mb-16">
+                <div class="card p-6 mb-8">
+                    <h2 class="text-3xl font-bold mb-6 text-indigo-700 flex items-center">
+                        <i-lucide-compare class="mr-2 inline" width="32" height="32"></i-lucide-compare>
+                        比较分析
+                    </h2>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表与数组的比较</h3>
+                        
+                        <div class="overflow-x-auto mb-6">
+                            <table class="compare-table">
+                                <thead>
+                                    <tr>
+                                        <th>特性</th>
+                                        <th>链表</th>
+                                        <th>数组</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>内存分配</td>
+                                        <td>动态分配，不连续</td>
+                                        <td>连续内存空间</td>
+                                    </tr>
+                                    <tr>
+                                        <td>大小限制</td>
+                                        <td>理论上仅受系统内存限制</td>
+                                        <td>创建时固定大小或需要重新分配</td>
+                                    </tr>
+                                    <tr>
+                                        <td>访问元素</td>
+                                        <td>O(n) 顺序访问</td>
+                                        <td>O(1) 随机访问</td>
+                                    </tr>
+                                    <tr>
+                                        <td>插入操作</td>
+                                        <td>O(1) 已知位置插入</td>
+                                        <td>O(n) 需要移动元素</td>
+                                    </tr>
+                                    <tr>
+                                        <td>删除操作</td>
+                                        <td>O(1) 已知位置删除</td>
+                                        <td>O(n) 需要移动元素</td>
+                                    </tr>
+                                    <tr>
+                                        <td>内存利用</td>
+                                        <td>额外需要指针空间</td>
+                                        <td>仅存储数据，高效</td>
+                                    </tr>
+                                    <tr>
+                                        <td>内存开销</td>
+                                        <td>每个节点需要额外的指针空间</td>
+                                        <td>紧凑存储，低内存开销</td>
+                                    </tr>
+                                    <tr>
+                                        <td>适用场景</td>
+                                        <td>频繁增删、大小不固定</td>
+                                        <td>频繁随机访问、大小相对固定</td>
+                                    </tr>
+                                    <tr>
+                                        <td>缓存友好性</td>
+                                        <td>较差，节点分散在内存中</td>
+                                        <td>良好，连续内存有利于缓存命中</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">单链表与双向链表比较</h3>
+                        
+                        <div class="overflow-x-auto mb-6">
+                            <table class="compare-table">
+                                <thead>
+                                    <tr>
+                                        <th>特性</th>
+                                        <th>单链表</th>
+                                        <th>双向链表</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>节点结构</td>
+                                        <td>数据 + 单个后继指针</td>
+                                        <td>数据 + 前驱指针 + 后继指针</td>
+                                    </tr>
+                                    <tr>
+                                        <td>内存开销</td>
+                                        <td>每节点需要1个指针</td>
+                                        <td>每节点需要2个指针</td>
+                                    </tr>
+                                    <tr>
+                                        <td>实现复杂度</td>
+                                        <td>简单</td>
+                                        <td>较复杂</td>
+                                    </tr>
+                                    <tr>
+                                        <td>遍历方向</td>
+                                        <td>只能从头到尾</td>
+                                        <td>可双向遍历</td>
+                                    </tr>
+                                    <tr>
+                                        <td>从当前节点删除自身</td>
+                                        <td>O(n)，需要找前驱</td>
+                                        <td>O(1)，直接访问前驱</td>
+                                    </tr>
+                                    <tr>
+                                        <td>在当前节点之前插入</td>
+                                        <td>O(n)，需要找前驱</td>
+                                        <td>O(1)，直接访问前驱</td>
+                                    </tr>
+                                    <tr>
+                                        <td>适用场景</td>
+                                        <td>内存受限，只需向前遍历</td>
+                                        <td>需要频繁插入/删除、双向遍历</td>
+                                    </tr>
+                                    <tr>
+                                        <td>实现撤销/重做</td>
+                                        <td>不适用</td>
+                                        <td>非常适合</td>
+                                    </tr>
+                                    <tr>
+                                        <td>链表拆分合并</td>
+                                        <td>操作简单</td>
+                                        <td>需要更新更多指针</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表与其它数据结构的比较</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">链表 vs 栈/队列</h4>
+                                <p class="mb-2">栈和队列实际上是对链表的功能限制，只允许在特定位置插入和删除。</p>
+                                <ul class="list-disc pl-5 mb-4">
+                                    <li>栈：仅允许在一端操作（LIFO）</li>
+                                    <li>队列：一端插入，另一端删除（FIFO）</li>
+                                    <li>链表：可以在任意位置插入和删除</li>
+                                </ul>
+                                <p class="text-sm text-gray-700 mt-auto">链表是栈和队列实现的基础数据结构之一</p>
+                            </div>
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">链表 vs 树</h4>
+                                <p class="mb-2">树是链表概念的扩展，一个节点可以有多个后继节点，形成层级结构。</p>
+                                <ul class="list-disc pl-5 mb-4">
+                                    <li>链表：节点有一个（单链表）或两个指针（双向链表）</li>
+                                    <li>树：节点有多个指针指向子节点</li>
+                                    <li>链表是线性数据结构，树是非线性数据结构</li>
+                                </ul>
+                                <p class="text-sm text-gray-700 mt-auto">二叉树可视为每个节点有两个单链表</p>
+                            </div>
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">链表 vs 散列表</h4>
+                                <p class="mb-2">散列表通常使用链表解决冲突问题，两者结合提供了高效的查找和动态操作。</p>
+                                <ul class="list-disc pl-5 mb-4">
+                                    <li>链表：O(n)查找，O(1)插入和删除</li>
+                                    <li>散列表：平均O(1)查找、插入和删除</li>
+                                    <li>链地址法中，散列表的每个桶是一个链表</li>
+                                </ul>
+                                <p class="text-sm text-gray-700 mt-auto">散列表牺牲了顺序性，链表保持了元素顺序</p>
+                            </div>
+                            <div class="card p-4 flex flex-col h-full">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">链表 vs 跳表</h4>
+                                <p class="mb-2">跳表是对有序链表的优化，通过增加多级索引提高查找效率。</p>
+                                <ul class="list-disc pl-5 mb-4">
+                                    <li>链表：查找时间O(n)</li>
+                                    <li>跳表：查找时间优化到O(log n)</li>
+                                    <li>跳表维护了多个层次的链表，形成索引结构</li>
+                                </ul>
+                                <p class="text-sm text-gray-700 mt-auto">跳表结合了链表和二分查找的优点</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="summary" class="mb-16">
+                <div class="card p-6 mb-8">
+                    <h2 class="text-3xl font-bold mb-6 text-indigo-700 flex items-center">
+                        <i-lucide-check-circle-2 class="mr-2 inline" width="32" height="32"></i-lucide-check-circle-2>
+                        总结
+                    </h2>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表知识思维导图</h3>
+                        
+                        <div class="bg-white p-4 rounded-lg shadow-inner mb-6">
+                            <div class="mermaid">
+                                mindmap
+                                  root((链表))
+                                    基本概念
+                                      线性数据结构
+                                      节点存储数据
+                                      不连续内存空间
+                                      动态分配释放
+                                    分类
+                                      单链表
+                                      双向链表
+                                      循环链表
+                                      双向循环链表
+                                      带头节点链表
+                                    基本操作
+                                      创建与初始化
+                                      插入节点
+                                        头插法
+                                        尾插法
+                                        中间插入
+                                      删除节点
+                                      查找节点
+                                      修改节点
+                                      遍历链表
+                                      销毁链表
+                                    优化策略
+                                      哨兵节点
+                                      快慢指针
+                                      维护尾指针
+                                      循环结构
+                                      双向指针
+                                    应用场景
+                                      LRU缓存
+                                      进程调度
+                                      撤销重做
+                                      多项式计算
+                                      内存管理
+                                      图的邻接表
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">常见问题与解决方案</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-bold mb-2">问题：如何检测链表中是否存在环？</h4>
+                                <div class="ml-4">
+                                    <p class="font-semibold">解决方案：</p>
+                                    <p>使用快慢指针（Floyd判圈算法）。慢指针每次移动一步，快指针每次移动两步，如果两指针相遇，则链表中存在环。</p>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-bold mb-2">问题：如何找到链表的中间节点？</h4>
+                                <div class="ml-4">
+                                    <p class="font-semibold">解决方案：</p>
+                                    <p>同样使用快慢指针技巧。慢指针每次移动一步，快指针每次移动两步，当快指针到达链表尾部时，慢指针正好位于中间节点。</p>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-bold mb-2">问题：如何反转链表？</h4>
+                                <div class="ml-4">
+                                    <p class="font-semibold">解决方案：</p>
+                                    <p>使用三指针法，分别指向当前节点、前一节点和下一节点，逐个节点反转指针方向。</p>
+                                    <pre><code class="language-c">ListNode* reverseList(ListNode* head) {
+    ListNode* prev = NULL;
+    ListNode* current = head;
+    ListNode* nextTemp;
+    
+    while (current != NULL) {
+        nextTemp = current->next; // 保存下一节点
+        current->next = prev;     // 反转指针
+        prev = current;           // 移动prev
+        current = nextTemp;       // 移动current
+    }
+    
+    return prev; // 新的头节点
+}</code></pre>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-bold mb-2">问题：如何合并两个有序链表？</h4>
+                                <div class="ml-4">
+                                    <p class="font-semibold">解决方案：</p>
+                                    <p>使用归并排序的思想，创建一个哨兵节点（dummy node），然后比较两个链表的节点值，将较小值的节点连接到结果链表上。</p>
+                                    <pre><code class="language-c">ListNode* mergeTwoLists(ListNode* l1, ListNode* l2) {
+    ListNode dummy; // 哨兵节点
+    ListNode* tail = &dummy;
+    
+    while (l1 != NULL && l2 != NULL) {
+        if (l1->val <= l2->val) {
+            tail->next = l1;
+            l1 = l1->next;
+        } else {
+            tail->next = l2;
+            l2 = l2->next;
+        }
+        tail = tail->next;
+    }
+    
+    // 连接剩余部分
+    tail->next = (l1 != NULL) ? l1 : l2;
+    
+    return dummy.next;
+}</code></pre>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-bold mb-2">问题：如何判断两个链表是否相交？</h4>
+                                <div class="ml-4">
+                                    <p class="font-semibold">解决方案：</p>
+                                    <p>两种方法：1) 遍历两个链表找到各自的尾节点，如果尾节点相同则相交；2) 使用环的思想，将第一个链表的尾部连接到头部形成环，然后检测第二个链表是否包含环，如果有则相交。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">链表的最佳实践</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">使用哨兵节点减少边界条件处理</h4>
+                                <p>采用带头节点的链表可以简化插入和删除操作，不需要分别处理空链表和非空链表的情况，统一操作逻辑。</p>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">保持链表的正确性</h4>
+                                <p>每次操作后确保链表的完整性，特别是在删除和插入操作后检查头节点和尾节点的正确性，避免链表断裂和内存泄漏。</p>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">谨慎处理内存管理</h4>
+                                <p>在C语言实现中注意手动释放不再需要的节点内存，避免内存泄漏；使用Java等有垃圾回收的语言时，确保正确取消引用不再需要的节点。</p>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">选择合适的链表类型</h4>
+                                <p>根据应用场景选择合适的链表类型：需要双向遍历时使用双向链表；需要高效插入删除时使用带头节点的双向循环链表；内存受限时可考虑单链表。</p>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">使用迭代器模式遍历链表</h4>
+                                <p>在面向对象语言中实现链表时，提供迭代器接口，使得链表的遍历操作与链表的内部实现解耦，提高代码可维护性。</p>
+                            </div>
+                            <div class="card p-4">
+                                <h4 class="font-bold text-lg mb-2 text-indigo-600">合理封装链表操作</h4>
+                                <p>将链表的常用操作封装为函数或方法，避免直接暴露链表节点的内部结构，提高代码的可读性和可维护性。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="references" class="mb-8">
+                <div class="card p-6">
+                    <h2 class="text-3xl font-bold mb-6 text-indigo-700 flex items-center">
+                        <i-lucide-book-open class="mr-2 inline" width="32" height="32"></i-lucide-book-open>
+                        参考资料
+                    </h2>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-2xl font-semibold mb-4 text-gray-800">学习资源</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-bold mb-2">推荐书籍</h4>
+                                <ul class="list-disc pl-5 space-y-1">
+                                    <li>《数据结构与算法分析》 - Mark Allen Weiss</li>
+                                    <li>《算法导论》- Thomas H. Cormen等</li>
+                                    <li>《数据结构（C语言版）》- 严蔚敏</li>
+                                </ul>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-bold mb-2">在线教程与文档</h4>
+                                <ul class="list-disc pl-5 space-y-1">
+                                    <li><a href="https://www.geeksforgeeks.org/data-structures/linked-list/" class="text-blue-600 hover:underline">GeeksforGeeks链表教程</a></li>
+                                    <li><a href="https://leetcode.com/tag/linked-list/" class="text-blue-600 hover:underline">LeetCode链表题集</a></li>
+                                    <li><a href="https://www.tutorialspoint.com/data_structures_algorithms/linked_list_algorithms.htm" class="text-blue-600 hover:underline">TutorialsPoint链表算法</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-xl font-semibold mb-3 text-gray-800">参考链接</h3>
+                        
+                        <ul class="list-disc pl-5 space-y-2">
+                            <li><a href="https://developer.aliyun.com/article/1621349" class="text-blue-600 hover:underline">【数据结构】——双向链表详细理解和实现 - 阿里云开发者社区</a></li>
+                            <li><a href="https://blog.csdn.net/m0_73941339/article/details/145763666" class="text-blue-600 hover:underline">Java链表全解析：从单向链表到双向链表的实现与优化 - CSDN博客</a></li>
+                            <li><a href="https://cloud.tencent.com/developer/article/2459631" class="text-blue-600 hover:underline">【数据结构】——双向链表详细理解和实现 - 腾讯云开发者社区</a></li>
+                            <li><a href="https://cloud.tencent.com/developer/article/2460518" class="text-blue-600 hover:underline">【数据结构初阶】千字文章带你征服 " 双向链表 "(附源码) - 腾讯云开发者社区</a></li>
+                            <li><a href="https://cloud.tencent.com/developer/article/2180487" class="text-blue-600 hover:underline">【数据结构】链表最强结构-带头双向循环链表（超详解） - 腾讯云开发者社区</a></li>
+                            <li><a href="https://cloud.tencent.com/developer/article/2470343" class="text-blue-600 hover:underline">数据结构--双向链表专题：从入门到进阶 - 腾讯云开发者社区</a></li>
+                            <li><a href="https://www.chinacion.cn/article/4419.html" class="text-blue-600 hover:underline">链表——最基本的数据结构之一 | 经典链表应用场景：LRU 缓存淘汰算法 技术指南</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <script>
+        // 初始化Mermaid图表
+        document.addEventListener('DOMContentLoaded', function() {
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'default',
+                flowchart: {
+                    useMaxWidth: true,
+                    htmlLabels: true
+                },
+                securityLevel: 'loose'
+            });
+            
+            // 进度条处理
+            window.addEventListener('scroll', function() {
+                const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+                const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                const scrolled = (winScroll / height) * 100;
+                document.getElementById("progressBar").style.width = scrolled + "%";
+            });
+            
+            // 初始化图标
+            lucide.createIcons();
+        });
+        
+        // 如果JavaScript被禁用，下面的内容将显示
+        document.addEventListener('DOMContentLoaded', function() {
+            const terms = document.querySelectorAll('.term');
+            terms.forEach(term => {
+                term.addEventListener('click', function() {
+                    const definition = this.nextElementSibling;
+                    if (definition.style.display === 'block') {
+                        definition.style.display = 'none';
+                    } else {
+                        definition.style.display = 'block';
+                    }
+                });
+            });
+        });
+    </script>
+    
+    <noscript>
+        <style>
+            .term-definition {
+                display: block !important;
+                position: static !important;
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+                margin-top: 0.5rem !important;
+                margin-bottom: 1rem !important;
+            }
+            
+            .term {
+                text-decoration: none !important;
+                color: inherit !important;
+                cursor: default !important;
+            }
+        </style>
+    </noscript>
+</body>
+</html>
