@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbit-CI 与 Dune-CI 技术概念解析</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@chinese-fonts/yozai@2.0.1/dist/Yozai-Regular/result.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {font-family: 'Yozai', 'Roboto', sans-serif;}
+        code {font-family: monospace;background-color: #f7fafc;border-radius: 0.25rem;padding: 0.1rem 0.25rem;font-size: 0.875rem;}
+        .dark code {background-color: #2d3748;color: #e2e8f0;}
+        .gradient-bg {background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);}
+        .code-block {background: #f8f9fa;border-left: 4px solid #4299e1;padding: 1rem;overflow-x: auto;}
+        .dark .code-block {background: #1a202c;border-left: 4px solid #4299e1;}
+        .term {cursor: pointer;border-bottom: 1px dashed #4299e1;}
+        .collapsible-content {max-height: 0;overflow: hidden;transition: max-height 0.3s ease;}
+        .expanded {max-height: 1000px;}
+        .tooltip {position: relative;display: inline-block;}
+        .tooltip .tooltip-text {visibility: hidden;width: 200px;background-color: #555;color: #fff;text-align: center;border-radius: 6px;padding: 5px;position: absolute;z-index: 1;bottom: 125%;left: 50%;margin-left: -100px;opacity: 0;transition: opacity 0.3s;}
+        .tooltip:hover .tooltip-text {visibility: visible;opacity: 1;}
+        .tab-content {display: none;}
+        .tab-content.active {display: block;}
+        .progress-container {width: 100%;background-color: #e2e8f0;}
+        .progress-bar {height: 8px;background-color: #4299e1;width: 0;transition: width 1s ease-in-out;}
+        .timeline-item {position: relative;padding-left: 2rem;margin-bottom: 1rem;}
+        .timeline-item::before {content: '';position: absolute;left: 0;top: 0.25rem;height: 1rem;width: 1rem;background-color: #4299e1;border-radius: 50%;}
+        .timeline-item::after {content: '';position: absolute;left: 0.5rem;top: 1.25rem;bottom: -1rem;width: 1px;background-color: #a0aec0;}
+        .timeline-item:last-child::after {display: none;}
+        .features-list li {margin-bottom: 0.5rem;position: relative;padding-left: 1.5rem;}
+        .features-list li::before {content: '✓';position: absolute;left: 0;color: #4299e1;}
+    </style>
+</head>
+<body>
+    <div class="min-h-screen flex flex-col">
+        <header class="gradient-bg text-white shadow-lg">
+            <div class="container mx-auto px-4 py-6">
+                <h1 class="text-3xl font-bold mb-2">Orbit-CI 与 Dune-CI 技术概念解析</h1>
+                <p class="text-lg">持续集成系统的比较与分析</p>
+                <div class="progress-container mt-4 rounded-full overflow-hidden">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+            </div>
+        </header>
+        <nav class="bg-white shadow dark:bg-gray-800">
+            <div class="container mx-auto px-4 py-3">
+                <ul class="flex space-x-4 overflow-x-auto">
+                    <li><a href="#definition" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 whitespace-nowrap">术语定义</a></li>
+                    <li><a href="#implementation" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 whitespace-nowrap">实现细节</a></li>
+                    <li><a href="#applications" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 whitespace-nowrap">应用场景</a></li>
+                    <li><a href="#comparison" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 whitespace-nowrap">比较分析</a></li>
+                    <li><a href="#summary" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 whitespace-nowrap">总结</a></li>
+                    <li><a href="#references" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 whitespace-nowrap">参考资料</a></li>
+                </ul>
+            </div>
+        </nav>
+        <main class="flex-grow container mx-auto px-4 py-8">
+            <section id="definition" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b-2 border-gray-200">术语定义</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <div class="flex items-center mb-4">
+                            <i data-lucide="git-branch" class="w-6 h-6 text-blue-500 mr-2"></i>
+                            <h3 class="text-xl font-semibold">Orbit-CI<span class="text-sm text-gray-500 ml-2">(轨道持续集成)</span></h3>
+                        </div>
+                        <p class="mb-4">Orbit-CI 是一个新兴的<span class="term tooltip">持续集成<span class="tooltip-text">自动化构建、测试和部署代码的过程</span></span>平台，设计用于处理分布式系统的复杂部署。其核心理念是将软件开发流程视为围绕核心代码库的"轨道"，每个组件在自己的轨道上运行，同时保持与核心的同步。</p>
+                        <div class="mt-4">
+                            <button class="text-blue-600 hover:text-blue-800 text-sm flex items-center" onclick="toggleContent('orbit-more')">
+                                <span id="orbit-more-text">了解更多</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 ml-1" id="orbit-more-icon"></i>
+                            </button>
+                            <div id="orbit-more" class="collapsible-content mt-3">
+                                <p>Orbit-CI 的名称来源于天文学中的"轨道"概念，象征着不同组件围绕中心系统运行的方式。它特别适合微服务架构和容器化应用程序，提供了强大的协调能力和自动恢复机制。</p>
+                                <p class="mt-2">该系统采用声明式配置，使用YAML或JSON定义工作流，并支持多种自定义插件来扩展功能。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <div class="flex items-center mb-4">
+                            <i data-lucide="layers" class="w-6 h-6 text-amber-500 mr-2"></i>
+                            <h3 class="text-xl font-semibold">Dune-CI<span class="text-sm text-gray-500 ml-2">(沙丘持续集成)</span></h3>
+                        </div>
+                        <p class="mb-4">Dune-CI 是一个面向大规模项目的<span class="term tooltip">持续集成<span class="tooltip-text">自动化构建、测试和部署代码的过程</span></span>系统，专注于提供高度可扩展的构建环境。其设计灵感来源于沙丘的流动性和适应性，能够根据项目需求自动调整资源分配。</p>
+                        <div class="mt-4">
+                            <button class="text-blue-600 hover:text-blue-800 text-sm flex items-center" onclick="toggleContent('dune-more')">
+                                <span id="dune-more-text">了解更多</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 ml-1" id="dune-more-icon"></i>
+                            </button>
+                            <div id="dune-more" class="collapsible-content mt-3">
+                                <p>Dune-CI 以其高效的资源管理和适应性而闻名，特别是在处理大型单体应用或高度复杂的项目结构时。它采用层级化配置系统，允许从项目根目录向下继承和覆盖配置。</p>
+                                <p class="mt-2">该系统内置了强大的缓存机制和并行执行能力，显著减少构建时间，并支持复杂的条件逻辑来优化工作流程。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="implementation" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b-2 border-gray-200">实现细节与优化</h2>
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold mb-3">工作流程图</h3>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-4">
+                        <div class="mermaid">
+                            graph TD
+                                A[代码提交] --> B{CI 系统类型}
+                                B -->|Orbit-CI| C[多轨道并行处理]
+                                B -->|Dune-CI| D[层级化构建处理]
+                                C --> E[依赖解析]
+                                D --> E
+                                E --> F[构建]
+                                F --> G[测试]
+                                G --> H[部署]
+                                H --> I[反馈循环]
+                                I -->|失败| F
+                                I -->|成功| J[发布]
+                        </div>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold mb-3">Orbit-CI 架构</h3>
+                        <p class="mb-3">Orbit-CI 采用<span class="term tooltip">事件驱动架构<span class="tooltip-text">通过触发和响应事件来协调系统组件的架构模式</span></span>，由以下核心组件组成：</p>
+                        <ul class="features-list">
+                            <li><strong>轨道控制器</strong>：管理工作流的主要组件，协调各个轨道的执行</li>
+                            <li><strong>轨道工作器</strong>：执行具体任务的工作节点，可横向扩展</li>
+                            <li><strong>轨道仓库</strong>：存储构建历史和工件的中央存储库</li>
+                            <li><strong>轨道调度器</strong>：优化资源分配和任务排队</li>
+                        </ul>
+                        <h4 class="text-lg font-semibold mt-4 mb-2">Orbit-CI 生命周期</h4>
+                        <div class="mermaid">
+                            stateDiagram-v2
+                                [*] --> 初始化
+                                初始化 --> 轨道规划
+                                轨道规划 --> 依赖解析
+                                依赖解析 --> 轨道执行
+                                轨道执行 --> 轨道同步
+                                轨道同步 --> 结果汇总
+                                结果汇总 --> [*]
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold mb-3">Dune-CI 架构</h3>
+                        <p class="mb-3">Dune-CI 采用<span class="term tooltip">层级化架构<span class="tooltip-text">将系统组织为不同层级的组件，每个层级负责特定功能的架构模式</span></span>，包括以下关键部分：</p>
+                        <ul class="features-list">
+                            <li><strong>沙丘调度中心</strong>：核心控制单元，负责工作流的协调</li>
+                            <li><strong>构建节点集群</strong>：可动态扩展的分布式执行环境</li>
+                            <li><strong>智能缓存系统</strong>：减少重复构建的高效缓存机制</li>
+                            <li><strong>资源自适应层</strong>：根据工作负载动态调整资源分配</li>
+                        </ul>
+                        <h4 class="text-lg font-semibold mt-4 mb-2">Dune-CI 生命周期</h4>
+                        <div class="mermaid">
+                            stateDiagram-v2
+                                [*] --> 配置解析
+                                配置解析 --> 资源分配
+                                资源分配 --> 缓存查找
+                                缓存查找 --> 并行构建
+                                并行构建 --> 结果聚合
+                                结果聚合 --> 缓存更新
+                                缓存更新 --> [*]
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold mb-3">优化策略</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 dark:bg-gray-700">
+                                    <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">优化领域</th>
+                                    <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">Orbit-CI</th>
+                                    <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">Dune-CI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">构建速度</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">多轨道并行执行，适合多组件系统</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">分层缓存策略，优化重复构建</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">资源利用</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">按轨道分配资源，避免竞争</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">动态资源调度，根据负载自适应</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">故障恢复</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">轨道隔离，单轨道失败不影响其他</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">状态快照，支持从失败点恢复</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">可扩展性</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">轨道可独立扩展，适合复杂微服务</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">层级自动扩展，适合大型单体应用</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <section id="applications" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b-2 border-gray-200">应用场景</h2>
+                <div class="mb-6">
+                    <div class="flex mb-4 border-b">
+                        <button id="tab-orbit" class="px-4 py-2 focus:outline-none" onclick="switchTab('orbit')">Orbit-CI 场景</button>
+                        <button id="tab-dune" class="px-4 py-2 focus:outline-none" onclick="switchTab('dune')">Dune-CI 场景</button>
+                    </div>
+                    <div id="content-orbit" class="tab-content">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+                            <h3 class="text-xl font-semibold mb-3">微服务架构部署</h3>
+                            <p class="mb-4">Orbit-CI 非常适合复杂的微服务架构，其轨道模型天然适合处理相互独立但又需要协调的服务组件。</p>
+                            <div class="code-block">
+                                <code>
+# orbit-ci.yaml 示例配置<br>
+version: '1'<br>
+orbits:<br>
+&nbsp;&nbsp;- name: 用户服务<br>
+&nbsp;&nbsp;&nbsp;&nbsp;path: ./services/user<br>
+&nbsp;&nbsp;&nbsp;&nbsp;dependencies: [数据库服务]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;scripts:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;build: "docker build -t user-service ."<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;test: "npm test"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;deploy: "kubectl apply -f k8s/user-service.yaml"<br>
+<br>
+&nbsp;&nbsp;- name: 订单服务<br>
+&nbsp;&nbsp;&nbsp;&nbsp;path: ./services/order<br>
+&nbsp;&nbsp;&nbsp;&nbsp;dependencies: [用户服务, 产品服务]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;scripts:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;build: "docker build -t order-service ."<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;test: "npm test"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;deploy: "kubectl apply -f k8s/order-service.yaml"<br>
+<br>
+workflows:<br>
+&nbsp;&nbsp;main:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;stages: [build, test, deploy]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;parallel: true  # 允许轨道并行执行
+                                </code>
+                            </div>
+                            <div class="mt-4">
+                                <h4 class="font-semibold mb-2">实际效果</h4>
+                                <p>当开发团队向代码仓库提交更改时，Orbit-CI 会自动识别受影响的服务，并仅重建和重新部署这些服务，大大减少了构建时间和资源消耗。其轨道依赖系统确保服务按正确顺序部署，例如先部署数据库服务，然后再部署依赖它的用户服务。</p>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                            <h3 class="text-xl font-semibold mb-3">前端和后端协调开发</h3>
+                            <p class="mb-4">Orbit-CI 可以有效协调前端和后端团队的工作流程，确保接口一致性和集成顺畅。</p>
+                            <div class="timeline-item">
+                                <h4 class="font-semibold">后端API更新</h4>
+                                <p>后端开发人员修改API并提交更改</p>
+                            </div>
+                            <div class="timeline-item">
+                                <h4 class="font-semibold">后端轨道启动</h4>
+                                <p>Orbit-CI检测到后端更改，启动后端轨道构建和测试</p>
+                            </div>
+                            <div class="timeline-item">
+                                <h4 class="font-semibold">集成测试</h4>
+                                <p>API变更通过后，触发集成测试轨道验证前后端兼容性</p>
+                            </div>
+                            <div class="timeline-item">
+                                <h4 class="font-semibold">前端轨道更新</h4>
+                                <p>集成测试通过后，前端开发人员收到通知进行适配</p>
+                            </div>
+                            <div class="timeline-item">
+                                <h4 class="font-semibold">部署</h4>
+                                <p>所有轨道同步后，系统协调部署前后端新版本</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="content-dune" class="tab-content">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+                            <h3 class="text-xl font-semibold mb-3">大型单体应用构建</h3>
+                            <p class="mb-4">Dune-CI 的层级化构建系统特别适合处理大型单体应用程序，能够显著减少构建时间。</p>
+                            <div class="code-block">
+                                <code>
+# dune-ci.yaml 示例配置<br>
+version: '1'<br>
+project:<br>
+&nbsp;&nbsp;name: 企业资源规划系统<br>
+&nbsp;&nbsp;type: monolith<br>
+<br>
+layers:<br>
+&nbsp;&nbsp;base:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;cache_key: "{{ checksum('package-lock.json') }}"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;commands:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- npm ci<br>
+<br>
+&nbsp;&nbsp;build:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;depends_on: base<br>
+&nbsp;&nbsp;&nbsp;&nbsp;cache_key: "{{ checksum('src/**/*.js') }}"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;commands:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- npm run build<br>
+&nbsp;&nbsp;&nbsp;&nbsp;artifacts:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- dist/<br>
+<br>
+&nbsp;&nbsp;test:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;depends_on: build<br>
+&nbsp;&nbsp;&nbsp;&nbsp;parallel: 4  # 并行运行4个测试实例<br>
+&nbsp;&nbsp;&nbsp;&nbsp;commands:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- npm test<br>
+<br>
+deploy:<br>
+&nbsp;&nbsp;environment: production<br>
+&nbsp;&nbsp;depends_on: test<br>
+&nbsp;&nbsp;commands:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;- ./scripts/deploy.sh
+                                </code>
+                            </div>
+                            <div class="mt-4">
+                                <h4 class="font-semibold mb-2">实际效果</h4>
+                                <p>对于包含数百万行代码的大型企业应用，Dune-CI 可以将构建时间从几小时减少到几分钟。它的智能缓存系统会检测哪些层没有变化，直接使用缓存结果，只重建受影响的层。例如，如果只修改了前端代码，后端构建可以完全从缓存恢复，大大加速整体构建流程。</p>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                            <h3 class="text-xl font-semibold mb-3">多环境部署流程</h3>
+                            <p class="mb-4">Dune-CI 擅长管理复杂的多环境部署策略，支持渐进式发布。</p>
+                            <div class="mermaid">
+                                graph TD
+                                    A[构建] --> B{测试}
+                                    B --> 通过 --> C[开发环境]
+                                    B --> 失败 --> H[通知团队]
+                                    C --> D{开发验收}
+                                    D --> 通过 --> E[测试环境]
+                                    D --> 失败 --> H
+                                    E --> F{测试验收}
+                                    F --> 通过 --> G[生产环境]
+                                    F --> 失败 --> H
+                            </div>
+                            <div class="mt-4">
+                                <h4 class="font-semibold mb-2">环境配置示例</h4>
+                                <p>Dune-CI 允许为每个环境定义特定的配置参数和验证规则，确保应用程序在正确验证后才会推进到下一环境，减少生产环境出现问题的风险。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="comparison" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b-2 border-gray-200">比较分析</h2>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+                    <h3 class="text-xl font-semibold mb-3">功能对比</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 dark:bg-gray-700">
+                                    <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">功能</th>
+                                    <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">Orbit-CI</th>
+                                    <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left">Dune-CI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">架构模型</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">轨道式（分布式）</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">层级式（自适应）</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">配置方式</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">组件级配置，轨道间关系显式定义</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">层级化配置，支持继承和覆盖</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">缓存机制</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">轨道间独立缓存，支持共享</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">智能层级缓存，高效依赖分析</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">并行能力</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">轨道级并行，依赖关系优化</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">层内任务并行，层间串行</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">插件生态</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">丰富的服务集成插件</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">强大的构建优化工具</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">资源效率</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">适中（按需分配）</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">高（动态优化）</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">学习曲线</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">中等（概念简单，关系复杂）</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">较陡（概念抽象，配置灵活）</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold mb-3">适用场景分析</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-lg font-semibold mb-2 text-blue-600">Orbit-CI 最适合</h4>
+                            <ul class="features-list">
+                                <li><strong>微服务架构</strong>：组件之间关系复杂但相对独立</li>
+                                <li><strong>多仓库项目</strong>：管理分散在不同仓库的代码</li>
+                                <li><strong>持续部署环境</strong>：需要频繁、小批量更新</li>
+                                <li><strong>分布式团队</strong>：不同团队负责不同组件</li>
+                                <li><strong>容器化环境</strong>：需要协调多个容器的部署</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold mb-2 text-amber-600">Dune-CI 最适合</h4>
+                            <ul class="features-list">
+                                <li><strong>单体大型应用</strong>：需要优化大型代码库的构建</li>
+                                <li><strong>复杂编译项目</strong>：如C++、Java等需要长时间编译的项目</li>
+                                <li><strong>资源密集型测试</strong>：需要大量计算资源的测试套件</li>
+                                <li><strong>严格部署流程</strong>：需要多阶段验证的企业级应用</li>
+                                <li><strong>遗留系统现代化</strong>：逐步重构的大型系统</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="summary" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b-2 border-gray-200">总结</h2>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+                    <h3 class="text-xl font-semibold mb-3">核心要点</h3>
+                    <div class="mermaid">
+                        mindmap
+                            root((CI系统对比))
+                                Orbit-CI
+                                    轨道式架构
+                                    微服务友好
+                                    组件级配置
+                                    轨道间独立缓存
+                                    分布式执行
+                                    服务集成插件
+                                Dune-CI
+                                    层级式架构
+                                    大型项目优化
+                                    层级化配置
+                                    智能缓存系统
+                                    资源自适应
+                                    构建优化工具
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+                    <h3 class="text-xl font-semibold mb-3">常见问题与解决方案</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="font-semibold">如何选择适合我项目的CI系统？</h4>
+                            <div class="mt-1">
+                                <p>评估您的项目结构：如果是由多个松散耦合的服务组成，优先考虑Orbit-CI；如果是单一大型代码库或需要严格的部署流程，Dune-CI可能更合适。考虑团队结构和开发流程也很重要——分布式团队通常更适合使用Orbit-CI的轨道模型。</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold">CI系统迁移难度大吗？</h4>
+                            <div class="mt-1">
+                                <p>迁移难度取决于现有流程的复杂性。两个系统都提供迁移工具，但通常建议分阶段迁移：先选择较小的非关键项目进行试点，验证配置和工作流后再扩展到更多项目。Orbit-CI的轨道模型使渐进式迁移更容易，而Dune-CI则提供了更完善的导入工具。</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold">性能优化建议</h4>
+                            <div class="mt-1">
+                                <p><strong>Orbit-CI:</strong> 优化轨道依赖关系，避免不必要的依赖；使用精确的触发条件，确保只有受影响的轨道才会运行；合理使用缓存策略，特别是对于依赖安装等耗时操作。</p>
+                                <p><strong>Dune-CI:</strong> 确保层级划分合理，将频繁变化的代码和稳定代码分离；利用并行执行能力，特别是在测试阶段；根据项目特点定制缓存策略，显著减少构建时间。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold mb-3">最佳实践</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold text-blue-600">Orbit-CI 最佳实践</h4>
+                            <ul class="features-list">
+                                <li>明确定义轨道间依赖关系，避免循环依赖</li>
+                                <li>使用条件触发，只在相关代码变更时执行轨道</li>
+                                <li>合理组织轨道，通常按功能域或服务边界划分</li>
+                                <li>利用轨道间的并行能力，最大化资源利用</li>
+                                <li>实施轨道特定的缓存策略，优化常见操作</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-amber-600">Dune-CI 最佳实践</h4>
+                            <ul class="features-list">
+                                <li>合理设计层级结构，将稳定依赖放在底层</li>
+                                <li>充分利用缓存键，确保只重建变更内容</li>
+                                <li>将大型测试套件拆分为并行运行的小集合</li>
+                                <li>使用条件部署流程，实现安全的自动发布</li>
+                                <li>定期清理过时缓存，避免存储空间浪费</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="references" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b-2 border-gray-200">参考资料</h2>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold mb-3">官方资源</h3>
+                    <ul class="space-y-2">
+                        <li>
+                            <a href="#" class="text-blue-600 hover:underline flex items-center">
+                                <i data-lucide="book-open" class="w-4 h-4 mr-2"></i>
+                                Orbit-CI 官方文档
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="text-blue-600 hover:underline flex items-center">
+                                <i data-lucide="book-open" class="w-4 h-4 mr-2"></i>
+                                Dune-CI 官方文档
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="text-blue-600 hover:underline flex items-center">
+                                <i data-lucide="github" class="w-4 h-4 mr-2"></i>
+                                Orbit-CI GitHub 仓库
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="text-blue-600 hover:underline flex items-center">
+                                <i data-lucide="github" class="w-4 h-4 mr-2"></i>
+                                Dune-CI GitHub 仓库
+                            </a>
+                        </li>
+                    </ul>
+                    <h3 class="text-xl font-semibold mt-6 mb-3">进阶学习资源</h3>
+                    <ul class="space-y-2">
+                        <li>
+                            <a href="#" class="text-blue-600 hover:underline flex items-center">
+                                <i data-lucide="video" class="w-4 h-4 mr-2"></i>
+                                《持续集成与部署最佳实践》在线课程
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="text-blue-600 hover:underline flex items-center">
+                                <i data-lucide="book" class="w-4 h-4 mr-2"></i>
+                                《现代CI/CD系统设计》技术专著
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="text-blue-600 hover:underline flex items-center">
+                                <i data-lucide="layout" class="w-4 h-4 mr-2"></i>
+                                CI系统性能优化指南
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="text-blue-600 hover:underline flex items-center">
+                                <i data-lucide="users" class="w-4 h-4 mr-2"></i>
+                                DevOps社区论坛 - CI/CD专区
+                            </a>
+                        </li>
+                    </ul>
+                    <h3 class="text-xl font-semibold mt-6 mb-3">相关技术</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <a href="#" class="text-blue-600 hover:underline">Docker</a>
+                        <a href="#" class="text-blue-600 hover:underline">Kubernetes</a>
+                        <a href="#" class="text-blue-600 hover:underline">Jenkins</a>
+                        <a href="#" class="text-blue-600 hover:underline">GitLab CI</a>
+                        <a href="#" class="text-blue-600 hover:underline">GitHub Actions</a>
+                        <a href="#" class="text-blue-600 hover:underline">ArgoCD</a>
+                        <a href="#" class="text-blue-600 hover:underline">Terraform</a>
+                        <a href="#" class="text-blue-600 hover:underline">Ansible</a>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <footer class="bg-gray-800 text-white py-6">
+            <div class="container mx-auto px-4">
+                <p class="text-center">© 2023 技术概念学习平台 | 专业术语解析与学习</p>
+            </div>
+        </footer>
+    </div>
+    <script>
+        // 初始化 Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+        
+        // 初始化 Lucide 图标
+        lucide.createIcons();
+        
+        // 切换可折叠内容
+        function toggleContent(id) {
+            const content = document.getElementById(id);
+            const textElement = document.getElementById(id + '-text');
+            const iconElement = document.getElementById(id + '-icon');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                textElement.textContent = '了解更多';
+                iconElement.setAttribute('data-lucide', 'chevron-down');
+            } else {
+                content.classList.add('expanded');
+                textElement.textContent = '收起';
+                iconElement.setAttribute('data-lucide', 'chevron-up');
+            }
+            lucide.createIcons();
+        }
+        
+        // 切换标签页
+        function switchTab(tab) {
+            const tabs = ['orbit', 'dune'];
+            tabs.forEach(t => {
+                const tabButton = document.getElementById('tab-' + t);
+                const tabContent = document.getElementById('content-' + t);
+                
+                if (t === tab) {
+                    tabButton.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                    tabContent.classList.add('active');
+                } else {
+                    tabButton.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                    tabContent.classList.remove('active');
+                }
+            });
+        }
+        
+        // 页面滚动进度条
+        window.addEventListener('scroll', function() {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById("progressBar").style.width = scrolled + "%";
+        });
+        
+        // 初始化标签页
+        switchTab('orbit');
+        
+        // 添加平滑滚动效果
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
