@@ -42,47 +42,66 @@
         .topic-item {
             border: 1px solid #eaecef;
             border-radius: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
             overflow: hidden;
-            transition: all 0.3s ease;
             background-color: #ffffff;
-            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
-        .topic-item:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
-        }
-        .topic-link {
-            display: block;
-            padding: 25px;
-            text-decoration: none;
-            color: #333;
-            position: relative;
-        }
-        .topic-link::after {
-            content: "→";
-            position: absolute;
-            right: 25px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #3498db;
-            font-size: 1.2rem;
-            opacity: 0;
-            transition: opacity 0.3s, transform 0.3s;
-        }
-        .topic-link:hover::after {
-            opacity: 1;
-            transform: translate(5px, -50%);
+        .topic-header {
+            padding: 25px 30px;
+            border-bottom: 2px solid #eaecef;
+            background-color: #f8fafc;
         }
         .topic-title {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-            color: #3498db;
-            font-weight: 500;
+            font-size: 1.8rem;
+            margin-bottom: 12px;
+            color: #2c3e50;
+            font-weight: 600;
         }
         .topic-desc {
             color: #666;
             font-size: 1.05rem;
+            margin-bottom: 0;
+            line-height: 1.5;
+        }
+        .articles-list {
+            list-style: none;
+            padding: 0;
+            background-color: #fff;
+        }
+        .article-item {
+            padding: 20px 30px;
+            border-bottom: 1px solid #eaecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        .article-item:last-child {
+            border-bottom: none;
+        }
+        .article-item:hover {
+            background-color: #f8fafc;
+        }
+        .article-link {
+            text-decoration: none;
+            color: #2c3e50;
+            flex-grow: 1;
+            padding-right: 20px;
+            font-size: 1.1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .article-link:hover {
+            color: #3498db;
+        }
+        .article-meta {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            padding-left: 15px;
+            border-left: 1px solid #eaecef;
         }
         p.description {
             font-size: 1.1rem;
@@ -109,6 +128,11 @@
             color: #999;
             margin-top: 10px;
         }
+        .no-articles {
+            padding: 20px 25px;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -121,39 +145,98 @@
         <ul class="topics-list">
             
             <li class="topic-item">
-                <a href="cicd/" class="topic-link">
-                    <h2 class="topic-title">CI/CD</h2>
+                <div class="topic-header">
+                    <h2 class="topic-title">Cicd</h2>
                     <p class="topic-desc">持续集成和持续部署的流程、工具和实践指南。</p>
-                </a>
+                </div>
+                <ul class="articles-list">
+                    
+                <li class="article-item">
+                    <a href="cicd/cicd.html" class="article-link">Orbit</a>
+                    <span class="article-meta">2025-03-11 14:54</span>
+                </li>
+                
+                </ul>
             </li>
-            
+        
+
             <li class="topic-item">
-                <a href="data-structure/" class="topic-link">
+                <div class="topic-header">
                     <h2 class="topic-title">Data Structure</h2>
                     <p class="topic-desc">常见数据结构的原理、实现和应用场景分析。</p>
-                </a>
+                </div>
+                <ul class="articles-list">
+                    
+                <li class="article-item">
+                    <a href="data-structure/linked-list.html" class="article-link">链表与双向链表详解</a>
+                    <span class="article-meta">2025-03-11 23:11</span>
+                </li>
+                
+                </ul>
             </li>
-            
+        
+
             <li class="topic-item">
-                <a href="mysql/" class="topic-link">
+                <div class="topic-header">
                     <h2 class="topic-title">MySQL</h2>
                     <p class="topic-desc">MySQL 数据库的基础知识、优化技巧和进阶内容。</p>
-                </a>
+                </div>
+                <ul class="articles-list">
+                    
+                <li class="article-item">
+                    <a href="mysql/mysql-lock.html" class="article-link">MySQL锁机制详解</a>
+                    <span class="article-meta">2025-03-11 18:31</span>
+                </li>
+                
+
+                <li class="article-item">
+                    <a href="mysql/mysql-log.html" class="article-link">MySQL日志系统：Undo Log、Redo Log和Binlog全解析</a>
+                    <span class="article-meta">2025-03-10 17:34</span>
+                </li>
+                
+                </ul>
             </li>
-            
+        
+
             <li class="topic-item">
-                <a href="redis/" class="topic-link">
+                <div class="topic-header">
                     <h2 class="topic-title">Redis</h2>
                     <p class="topic-desc">Redis 数据库的核心概念、用法、配置和最佳实践。</p>
-                </a>
+                </div>
+                <ul class="articles-list">
+                    
+                <li class="article-item">
+                    <a href="redis/redis-high-availability.html" class="article-link">Redis高可用与集群技术详解</a>
+                    <span class="article-meta">2025-03-13 19:48</span>
+                </li>
+                
+
+                <li class="article-item">
+                    <a href="redis/redis.html" class="article-link">Redis 基本概念详解</a>
+                    <span class="article-meta">2025-03-13 19:16</span>
+                </li>
+                
+
+                <li class="article-item">
+                    <a href="redis/redis-datatype-inner.html" class="article-link">Redis数据类型内部实现机制详解</a>
+                    <span class="article-meta">2025-03-11 22:02</span>
+                </li>
+                
+
+                <li class="article-item">
+                    <a href="redis/redis-datatype.html" class="article-link">Redis数据类型实现原理与应用场景</a>
+                    <span class="article-meta">2025-03-11 22:02</span>
+                </li>
+                
+                </ul>
             </li>
+        
         </ul>
 
         <footer>
             <p>&copy; 2025 技术文档中心 | 基于 <a href="https://pages.github.com/" target="_blank">GitHub Pages</a> 构建</p>
-            <p class="update-info">最后更新: 2025-03-13 20:04:40</p>
+            <p class="update-info">最后更新: 2025-03-13 22:23:13</p>
         </footer>
     </div>
 </body>
 </html>
-    

@@ -167,6 +167,216 @@ def scan_docs_directory():
     
     return topics
 
+def generate_docs_index_html(topics):
+    """生成docs目录下的index.html文件，使用优化后的样式"""
+    template = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技术文档中心</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f9f9fc;
+            padding: 0;
+            margin: 0;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: transparent;
+        }}
+        header {{
+            text-align: center;
+            margin-bottom: 50px;
+            padding-top: 40px;
+        }}
+        h1 {{
+            font-size: 2.8rem;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-weight: 600;
+        }}
+        .topics-list {{
+            list-style: none;
+            margin-top: 30px;
+        }}
+        .topic-item {{
+            border: 1px solid #eaecef;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            background-color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }}
+        .topic-header {{
+            padding: 25px 30px;
+            border-bottom: 2px solid #eaecef;
+            background-color: #f8fafc;
+        }}
+        .topic-title {{
+            font-size: 1.8rem;
+            margin-bottom: 12px;
+            color: #2c3e50;
+            font-weight: 600;
+        }}
+        .topic-desc {{
+            color: #666;
+            font-size: 1.05rem;
+            margin-bottom: 0;
+            line-height: 1.5;
+        }}
+        .articles-list {{
+            list-style: none;
+            padding: 0;
+            background-color: #fff;
+        }}
+        .article-item {{
+            padding: 20px 30px;
+            border-bottom: 1px solid #eaecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+        }}
+        .article-item:last-child {{
+            border-bottom: none;
+        }}
+        .article-item:hover {{
+            background-color: #f8fafc;
+        }}
+        .article-link {{
+            text-decoration: none;
+            color: #2c3e50;
+            flex-grow: 1;
+            padding-right: 20px;
+            font-size: 1.1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        .article-link:hover {{
+            color: #3498db;
+        }}
+        .article-meta {{
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            padding-left: 15px;
+            border-left: 1px solid #eaecef;
+        }}
+        p.description {{
+            font-size: 1.1rem;
+            color: #666;
+            max-width: 800px;
+            margin: 0 auto;
+        }}
+        footer {{
+            text-align: center;
+            margin-top: 50px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }}
+        footer a {{
+            color: #3498db;
+            text-decoration: none;
+        }}
+        footer a:hover {{
+            text-decoration: underline;
+        }}
+        .update-info {{
+            text-align: center;
+            font-size: 0.8rem;
+            color: #999;
+            margin-top: 10px;
+        }}
+        .no-articles {{
+            padding: 20px 25px;
+            color: #666;
+            font-style: italic;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>技术文档中心</h1>
+            <p class="description">这里收集了各种技术主题的文档和学习资料，帮助您快速了解和掌握各种技术知识。</p>
+        </header>
+
+        <ul class="topics-list">
+            {topic_items}
+        </ul>
+
+        <footer>
+            <p>&copy; {current_year} 技术文档中心 | 基于 <a href="https://pages.github.com/" target="_blank">GitHub Pages</a> 构建</p>
+            <p class="update-info">最后更新: {last_update}</p>
+        </footer>
+    </div>
+</body>
+</html>
+"""
+    
+    # 生成主题列表项HTML
+    topic_items = []
+    for topic in topics:
+        # 生成文章列表
+        articles_html = ""
+        if topic['files']:
+            articles_html = "\n".join([
+                f"""
+                <li class="article-item">
+                    <a href="{file['path']}" class="article-link">{file['title']}</a>
+                    <span class="article-meta">{file['modified']}</span>
+                </li>
+                """ for file in sorted(topic['files'], key=lambda x: x['modified'], reverse=True)
+            ])
+        else:
+            articles_html = '<li class="no-articles">暂无文章</li>'
+
+        item = f"""
+            <li class="topic-item">
+                <div class="topic-header">
+                    <h2 class="topic-title">{topic['pretty_name']}</h2>
+                    <p class="topic-desc">{topic['description']}</p>
+                </div>
+                <ul class="articles-list">
+                    {articles_html}
+                </ul>
+            </li>
+        """
+        topic_items.append(item)
+    
+    # 合并所有主题列表项
+    all_items = "\n".join(topic_items)
+    
+    # 获取当前年份和时间
+    current_year = time.strftime("%Y")
+    last_update = time.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # 填充模板
+    html_content = template.format(
+        topic_items=all_items,
+        current_year=current_year,
+        last_update=last_update
+    )
+    
+    # 写入文件
+    docs_index_path = os.path.join("docs", "index.html")
+    with open(docs_index_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+    
+    print(f"已更新docs/index.html，包含 {len(topics)} 个主题")
+
 def update_indexes():
     """扫描目录并更新索引文件"""
     global last_dir_hash
@@ -184,9 +394,9 @@ def update_indexes():
     # 更新哈希值
     last_dir_hash = current_hash
     
-    # 不再生成根目录的index.html，docs/index.html已经手动优化
-    print(f"检测到文档更新，包含 {len(topics)} 个主题")
-    print("注意：docs/index.html已手动优化，不会自动更新")
+    # 生成docs/index.html
+    generate_docs_index_html(topics)
+    print("索引文件已自动更新")
 
 class DocsChangeHandler(FileSystemEventHandler):
     """处理文档目录的文件系统事件"""
