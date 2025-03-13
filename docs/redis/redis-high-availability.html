@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Redis高可用与集群技术详解</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Inter:wght@400;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔄%3C/text%3E%3C/svg%3E">
+    <style>
+        :root {
+            --primary-color: #dc2626;
+            --secondary-color: #f87171;
+            --bg-color: #fef2f2;
+            --code-bg: #f3f4f6;
+            --border-color: #fecaca;
+        }
+        body {
+            font-family: 'Noto Sans SC', 'Inter', sans-serif;
+            line-height: 1.6;
+            color: #374151;
+            background-color: #ffffff;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+        }
+        code, pre {
+            font-family: 'Fira Code', monospace;
+            background-color: var(--code-bg);
+            border-radius: 0.25rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .term {
+            color: var(--primary-color);
+            cursor: pointer;
+            border-bottom: 1px dashed var(--secondary-color);
+            position: relative;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 280px;
+            max-width: 90vw;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.875rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        .code-block {
+            position: relative;
+            background-color: var(--code-bg);
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: #e5e7eb;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .code-content {
+            padding: 1rem;
+            overflow-x: auto;
+            max-height: 400px;
+        }
+        .copy-btn {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            color: #4b5563;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .copy-btn:hover {
+            color: #1f2937;
+            background-color: rgba(229, 231, 235, 0.5);
+        }
+        .copy-btn.copied {
+            background-color: #10b981;
+            color: white;
+        }
+        .copy-btn.copied:after {
+            content: "✓";
+            margin-left: 4px;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .comparison-table th, .comparison-table td {
+            border: 1px solid #e5e7eb;
+            padding: 0.75rem;
+            text-align: left;
+            word-wrap: break-word;
+        }
+        .comparison-table th {
+            background-color: #f9fafb;
+        }
+        .comparison-table tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .progress-indicator {
+            position: sticky;
+            top: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #e5e7eb;
+            z-index: 100;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .mermaid {
+            margin: 1.5rem 0;
+            text-align: center;
+            overflow-x: auto;
+            padding: 1rem;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            max-width: 100%;
+            min-height: 200px;
+        }
+        #summary-diagram {
+            background-color: #ffffff !important;
+            margin: 0 auto;
+            min-height: 400px;
+            font-family: 'Noto Sans SC', 'Inter', sans-serif !important;
+            padding: 1rem 0;
+        }
+        /* 确保思维导图内容不显示为代码块 */
+        #summary-diagram pre, #summary-diagram code {
+            background-color: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            font-family: inherit !important;
+            font-size: inherit !important;
+        }
+        /* 改进思维导图节点样式 */
+        .mindmap-node rect {
+            fill: #f9fafb !important;
+            stroke: #e5e7eb !important;
+            rx: 5px !important;
+            ry: 5px !important;
+        }
+        .mindmap-node.root circle {
+            fill: #dc2626 !important;
+            stroke: #b91c1c !important;
+        }
+        .mindmap-node.root text {
+            fill: white !important;
+            font-weight: bold !important;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+            body {
+                font-size: 12pt;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+        }
+        @media (max-width: 768px) {
+            .comparison-table {
+                font-size: 0.875rem;
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+            .comparison-table th, .comparison-table td {
+                padding: 0.5rem;
+            }
+            .code-content {
+                font-size: 0.875rem;
+                padding: 0.75rem;
+            }
+            .mermaid {
+                font-size: 0.875rem;
+                padding: 0.5rem;
+            }
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .mb-12 {
+                margin-bottom: 2rem !important;
+            }
+            .mb-8 {
+                margin-bottom: 1.5rem !important;
+            }
+            .tooltip .tooltiptext {
+                width: auto;
+                left: 0;
+                right: 0;
+                transform: none;
+                margin-left: 0;
+            }
+            #summary-diagram {
+                min-height: 350px;
+                padding: 0.5rem;
+            }
+        }
+        @media (max-width: 640px) {
+            .comparison-table {
+                font-size: 0.75rem;
+            }
+            .code-content {
+                font-size: 0.75rem;
+                max-height: 300px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            h2 {
+                font-size: 1.25rem;
+            }
+            h3 {
+                font-size: 1.125rem;
+            }
+            body {
+                font-size: 14px;
+            }
+            .p-6 {
+                padding: 0.75rem !important;
+            }
+            code, pre {
+                font-size: 0.75rem;
+            }
+            .term {
+                margin: 0 2px;
+            }
+            #summary-diagram {
+                min-height: 300px;
+            }
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .mermaid-wrapper {
+            width: 100%;
+            overflow: hidden;
+            background: white;
+            border-radius: 0.5rem;
+        }
+        /* 修复代码框中的尖括号显示 */
+        .code-content code {
+            white-space: pre;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-800">
+    <div class="progress-indicator no-print">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <header class="bg-gradient-to-r from-red-50 to-red-100 py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center">
+                <span class="inline-block px-3 py-1 text-sm font-medium bg-red-100 text-red-800 rounded-full mb-2">中级</span>
+                <h1 class="text-3xl font-bold text-gray-900 sm:text-4xl">Redis高可用与集群技术详解</h1>
+                <p class="mt-2 text-lg text-gray-600">保障数据可靠性与系统扩展性的核心技术</p>
+            </div>
+        </div>
+    </header>
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
+        <section id="definition" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">术语定义</h2>
+            <div class="bg-white rounded-lg shadow-sm border border-red-100 p-6">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-gray-900">高可用 (High Availability)</h3>
+                        <p class="mt-1 text-gray-600">指系统在面对各种故障时能够持续提供服务的能力，通常通过冗余设计和自动故障转移实现。在Redis中，主要通过<span class="term tooltip">哨兵模式<span class="tooltiptext">Redis Sentinel是Redis的高可用解决方案，能够监控主节点状态并在主节点故障时自动进行故障转移。</span></span>和<span class="term tooltip">集群模式<span class="tooltiptext">Redis Cluster是Redis的分布式解决方案，提供数据分片、自动故障转移和线性扩展能力。</span></span>实现。</p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <h4 class="text-md font-medium text-gray-900">核心概念</h4>
+                    <ul class="mt-2 pl-6 list-disc text-gray-600">
+                        <li><strong>故障转移 (Failover)</strong>：当主节点不可用时，自动选举并提升一个从节点为新的主节点</li>
+                        <li><strong>数据分片 (Sharding)</strong>：将数据分散存储在多个节点上，提高系统容量和性能</li>
+                        <li><strong>一致性哈希 (Consistent Hashing)</strong>：一种数据分布算法，在节点变化时最小化数据迁移</li>
+                        <li><strong>主从复制 (Master-Slave Replication)</strong>：数据从主节点复制到从节点，提供数据冗余</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        <section id="implementation" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">实现细节与优化</h2>
+            <div class="mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-3">哨兵模式 (Sentinel)</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>sentinel.conf 配置示例</span>
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                    <div class="code-content">
+                        <pre><code># 监控主节点，名称为mymaster，IP为127.0.0.1，端口为6379，当2个哨兵认为主节点故障时才进行故障转移
+sentinel monitor mymaster 127.0.0.1 6379 2
+
+# 哨兵认为主节点下线所需的毫秒数
+sentinel down-after-milliseconds mymaster 5000
+
+# 故障转移过程中，同时进行同步的从节点数量
+sentinel parallel-syncs mymaster 1
+
+# 故障转移超时时间
+sentinel failover-timeout mymaster 180000</code></pre>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="mermaid" id="sentinel-diagram">%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px', 'fontFamily': 'Noto Sans SC, Inter, sans-serif' }}}%%
+                        graph TD
+                            A[哨兵1] -->|监控| B[主节点]
+                            C[哨兵2] -->|监控| B
+                            D[哨兵3] -->|监控| B
+                            B -->|复制| E[从节点1]
+                            B -->|复制| F[从节点2]
+                            A -.->|监控| E
+                            A -.->|监控| F
+                            C -.->|监控| E
+                            C -.->|监控| F
+                            D -.->|监控| E
+                            D -.->|监控| F
+                            A <-->|通信| C
+                            A <-->|通信| D
+                            C <-->|通信| D
+                            
+                            classDef sentinel fill:#f87171,stroke:#dc2626,color:white;
+                            classDef master fill:#818cf8,stroke:#4f46e5,color:white;
+                            classDef slave fill:#a3e635,stroke:#65a30d,color:black;
+                            
+                            class A,C,D sentinel;
+                            class B master;
+                            class E,F slave;
+                    </div>
+                </div>
+                <div class="mt-4 text-gray-700">
+                    <p><strong>工作流程：</strong></p>
+                    <ol class="list-decimal pl-6 mt-2">
+                        <li>哨兵持续监控主从节点的健康状态</li>
+                        <li>当主节点不可用时，哨兵会进行投票选举一个哨兵作为领导者</li>
+                        <li>领导者哨兵选择一个从节点提升为新的主节点</li>
+                        <li>通知其他从节点更新复制目标为新的主节点</li>
+                        <li>通知客户端主节点已更改</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-3">集群模式 (Cluster)</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>redis.conf 集群配置示例</span>
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                    <div class="code-content">
+                        <pre><code># 启用集群模式
+cluster-enabled yes
+
+# 集群配置文件（自动生成）
+cluster-config-file nodes-6379.conf
+
+# 节点超时时间
+cluster-node-timeout 15000
+
+# 集群节点IP
+bind 0.0.0.0
+
+# 启用集群总线通信的端口
+cluster-announce-port 6379
+cluster-announce-bus-port 16379</code></pre>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="mermaid" id="cluster-diagram">%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px', 'fontFamily': 'Noto Sans SC, Inter, sans-serif' }}}%%
+                        graph TD
+                            subgraph "分片0: 0-5460"
+                                A[主节点0] -->|复制| B[从节点0]
+                            end
+                            subgraph "分片1: 5461-10922"
+                                C[主节点1] -->|复制| D[从节点1]
+                            end
+                            subgraph "分片2: 10923-16383"
+                                E[主节点2] -->|复制| F[从节点2]
+                            end
+                            A <-->|集群总线| C
+                            A <-->|集群总线| E
+                            C <-->|集群总线| E
+                            
+                            classDef shard0 fill:#f87171,stroke:#dc2626,color:white;
+                            classDef shard1 fill:#818cf8,stroke:#4f46e5,color:white;
+                            classDef shard2 fill:#a3e635,stroke:#65a30d,color:black;
+                            
+                            class A,B shard0;
+                            class C,D shard1;
+                            class E,F shard2;
+                    </div>
+                </div>
+                <div class="mt-4 text-gray-700">
+                    <p><strong>数据分片原理：</strong></p>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li>Redis集群使用<span class="term tooltip">哈希槽<span class="tooltiptext">Redis集群使用16384个哈希槽来分配数据，每个键根据CRC16算法计算出一个槽位，然后映射到对应的节点。</span></span>（Hash Slot）进行数据分片</li>
+                        <li>共有16384个哈希槽，平均分配给各个主节点</li>
+                        <li>每个键通过CRC16(key) mod 16384计算出所属的槽位</li>
+                        <li>集群支持在线水平扩展，通过迁移槽位实现</li>
+                    </ul>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-gray-800 mb-3">事务与Lua脚本</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Redis事务示例</span>
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                        </div>
+                        <div class="code-content">
+                            <pre><code>MULTI
+SET account:1:balance 300
+SET account:2:balance 700
+EXEC</code></pre>
+                        </div>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Lua脚本实现分布式锁续期</span>
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                        </div>
+                        <div class="code-content">
+                            <pre><code>-- 分布式锁续期脚本
+-- KEYS[1]: 锁的键名
+-- ARGV[1]: 锁的值（通常是唯一标识符）
+-- ARGV[2]: 新的过期时间（秒）
+
+if redis.call('get', KEYS[1]) == ARGV[1] then
+  return redis.call('expire', KEYS[1], ARGV[2])
+else
+  return 0
+end</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="use-cases" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">应用场景</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">哨兵模式应用场景</h3>
+                    <ul class="list-disc pl-6 text-gray-600">
+                        <li>中小型应用需要高可用但数据量不大</li>
+                        <li>对数据一致性要求较高的场景</li>
+                        <li>读多写少的业务场景</li>
+                        <li>实例：电商网站的商品缓存、会话存储</li>
+                    </ul>
+                    <div class="mt-4">
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Java客户端连接哨兵示例</span>
+                                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                            <div class="code-content">
+                                <pre><code>Set<String> sentinels = new HashSet<>();
+sentinels.add("127.0.0.1:26379");
+sentinels.add("127.0.0.1:26380");
+sentinels.add("127.0.0.1:26381");
+
+JedisSentinelPool pool = new JedisSentinelPool(
+    "mymaster", sentinels, config);
+
+try (Jedis jedis = pool.getResource()) {
+    jedis.set("key", "value");
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">集群模式应用场景</h3>
+                    <ul class="list-disc pl-6 text-gray-600">
+                        <li>大型应用需要横向扩展存储容量</li>
+                        <li>需要处理高并发读写的场景</li>
+                        <li>数据量大且持续增长的业务</li>
+                        <li>实例：社交媒体的用户数据、游戏排行榜</li>
+                    </ul>
+                    <div class="mt-4">
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Java客户端连接集群示例</span>
+                                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                            <div class="code-content">
+                                <pre><code>Set<HostAndPort> nodes = new HashSet<>();
+nodes.add(new HostAndPort("127.0.0.1", 7001));
+nodes.add(new HostAndPort("127.0.0.1", 7002));
+nodes.add(new HostAndPort("127.0.0.1", 7003));
+
+JedisCluster cluster = new JedisCluster(nodes);
+cluster.set("key", "value");</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="comparison" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">比较分析</h2>
+            <div class="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>哨兵模式 (Sentinel)</th>
+                            <th>集群模式 (Cluster)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>数据分片</td>
+                            <td>❌ 不支持</td>
+                            <td>✅ 支持（哈希槽）</td>
+                        </tr>
+                        <tr>
+                            <td>水平扩展</td>
+                            <td>❌ 有限（只能通过读写分离）</td>
+                            <td>✅ 支持动态扩缩容</td>
+                        </tr>
+                        <tr>
+                            <td>故障转移</td>
+                            <td>✅ 自动（由哨兵完成）</td>
+                            <td>✅ 自动（由集群节点完成）</td>
+                        </tr>
+                        <tr>
+                            <td>部署复杂度</td>
+                            <td>中等</td>
+                            <td>较高</td>
+                        </tr>
+                        <tr>
+                            <td>多键操作</td>
+                            <td>✅ 支持</td>
+                            <td>❌ 有限（仅同槽位的键）</td>
+                        </tr>
+                        <tr>
+                            <td>事务支持</td>
+                            <td>✅ 完全支持</td>
+                            <td>❌ 有限（仅同槽位的键）</td>
+                        </tr>
+                        <tr>
+                            <td>内存使用</td>
+                            <td>较少</td>
+                            <td>较多（集群元数据）</td>
+                        </tr>
+                        <tr>
+                            <td>适用数据量</td>
+                            <td>小至中等</td>
+                            <td>中等至大型</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-3">内存管理与性能优化</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-900 mb-2">内存淘汰策略</h4>
+                        <ul class="list-disc pl-6 text-gray-600">
+                            <li><strong>noeviction</strong>：不淘汰，内存满时返回错误</li>
+                            <li><strong>allkeys-lru</strong>：淘汰最近最少使用的键</li>
+                            <li><strong>volatile-lru</strong>：淘汰设置了过期时间的键中最近最少使用的</li>
+                            <li><strong>allkeys-lfu</strong>：淘汰使用频率最低的键</li>
+                            <li><strong>volatile-lfu</strong>：淘汰设置了过期时间的键中使用频率最低的</li>
+                            <li><strong>allkeys-random</strong>：随机淘汰键</li>
+                            <li><strong>volatile-random</strong>：随机淘汰设置了过期时间的键</li>
+                            <li><strong>volatile-ttl</strong>：淘汰即将过期的键</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-900 mb-2">大Key和热Key问题</h4>
+                        <p class="text-gray-600 mb-2">大Key：单个键占用大量内存，可能导致：</p>
+                        <ul class="list-disc pl-6 text-gray-600 mb-4">
+                            <li>内存使用不均衡</li>
+                            <li>网络带宽占用高</li>
+                            <li>阻塞Redis主线程</li>
+                        </ul>
+                        <p class="text-gray-600 mb-2">热Key：频繁访问的键，可能导致：</p>
+                        <ul class="list-disc pl-6 text-gray-600">
+                            <li>单节点负载过高</li>
+                            <li>网络流量不均衡</li>
+                            <li>影响整体性能</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <h4 class="text-lg font-medium text-gray-900 mb-2">性能优化技巧</h4>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Pipeline批量操作示例</span>
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                        </div>
+                        <div class="code-content">
+                            <pre><code>// 使用Pipeline批量操作
+Pipeline pipeline = jedis.pipelined();
+for (int i = 0; i < 10000; i++) {
+    pipeline.set("key" + i, "value" + i);
+}
+// 一次性发送所有命令并获取结果
+List&lt;Object&gt; results = pipeline.syncAndReturnAll();</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="summary" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">总结</h2>
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+                <div class="mermaid-wrapper">
+                    <pre class="mermaid text-center" id="summary-diagram">
+mindmap
+  root((Redis高可用与集群))
+    哨兵模式
+      监控主从节点
+      自动故障转移
+      客户端通知
+      适合中小规模应用
+    集群模式
+      数据分片
+      哈希槽分配
+      动态扩缩容
+      适合大规模应用
+    内存管理
+      淘汰策略
+      大Key优化
+      热Key处理
+    性能优化
+      Pipeline批量操作
+      Lua脚本
+      慢查询分析
+                    </pre>
+                </div>
+            </div>
+            <div class="mt-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-3">常见问题与解决方案</h3>
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="mb-4">
+                        <h4 class="text-lg font-medium text-gray-900">Q: 哨兵模式和集群模式如何选择？</h4>
+                        <p class="mt-1 text-gray-600">A: 如果数据量不大但需要高可用，选择哨兵；如果数据量大且需要横向扩展，选择集群。</p>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-lg font-medium text-gray-900">Q: 集群模式下为什么不支持跨槽事务？</h4>
+                        <p class="mt-1 text-gray-600">A: 因为Redis集群采用分布式架构，不同槽位的数据可能在不同节点上，无法保证分布式事务的原子性。</p>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-lg font-medium text-gray-900">Q: 如何处理大Key问题？</h4>
+                        <p class="mt-1 text-gray-600">A: 将大Key拆分为多个小Key，如将大Hash拆分为多个小Hash，或使用分段存储策略。</p>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-900">Q: 如何解决热Key问题？</h4>
+                        <p class="mt-1 text-gray-600">A: 使用本地缓存、增加读取副本、使用分布式缓存或对热Key进行复制到多个槽位。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="references" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">参考资料</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">官方文档</h3>
+                    <ul class="list-disc pl-6 text-gray-600">
+                        <li><a href="https://redis.io/docs/management/sentinel/" class="text-red-600 hover:underline">Redis Sentinel 文档</a> / <a href="https://redis.io/docs/management/sentinel/" class="text-red-600 hover:underline">Redis Sentinel Documentation</a></li>
+                        <li><a href="https://redis.io/docs/management/scaling/" class="text-red-600 hover:underline">Redis 集群文档</a> / <a href="https://redis.io/docs/management/scaling/" class="text-red-600 hover:underline">Redis Cluster Documentation</a></li>
+                        <li><a href="https://redis.io/docs/management/optimization/" class="text-red-600 hover:underline">Redis 优化指南</a> / <a href="https://redis.io/docs/management/optimization/" class="text-red-600 hover:underline">Redis Optimization Guide</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">推荐学习资源</h3>
+                    <ul class="list-disc pl-6 text-gray-600">
+                        <li><a href="https://github.com/redis/redis" class="text-red-600 hover:underline">Redis 开源项目</a></li>
+                        <li><a href="https://redis.com/blog/" class="text-red-600 hover:underline">Redis 官方博客</a></li>
+                        <li>《Redis开发与运维》- 付磊, 张益军著</li>
+                        <li>《Redis设计与实现》- 黄健宏著</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-3">进阶学习主题</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <h4 class="text-md font-medium text-gray-900 mb-2">Redis Stream</h4>
+                        <p class="text-sm text-gray-600">Redis 5.0引入的数据类型，可用于消息队列和事件流处理</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <h4 class="text-md font-medium text-gray-900 mb-2">Redis Module</h4>
+                        <p class="text-sm text-gray-600">通过模块扩展Redis功能，如RedisJSON、RediSearch等</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <h4 class="text-md font-medium text-gray-900 mb-2">Redis ACL</h4>
+                        <p class="text-sm text-gray-600">Redis 6.0引入的访问控制列表，提供更细粒度的权限控制</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="advanced-topics" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">高级主题</h2>
+            <div class="mb-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-3">慢查询分析与优化</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>慢查询配置与分析</span>
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                    <div class="code-content">
+                        <pre><code># 配置慢查询日志
+# 执行时间超过多少微秒的命令会被记录
+CONFIG SET slowlog-log-slower-than 10000
+
+# 慢查询日志最多保存多少条
+CONFIG SET slowlog-max-len 128
+
+# 查看慢查询日志
+SLOWLOG GET [n]
+
+# 获取慢查询日志长度
+SLOWLOG LEN
+
+# 重置慢查询日志
+SLOWLOG RESET</code></pre>
+                    </div>
+                </div>
+                <p class="mt-4 text-gray-700">慢查询优化策略：</p>
+                <ul class="list-disc pl-6 text-gray-600 mt-2">
+                    <li>避免使用O(N)复杂度的命令处理大量数据，如KEYS、LRANGE、SMEMBERS等</li>
+                    <li>使用SCAN系列命令代替KEYS命令</li>
+                    <li>合理设置数据过期时间，避免实例中存在过多数据</li>
+                    <li>使用Pipeline批量处理命令，减少网络往返时间</li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-gray-800 mb-3">Redis事务的ACID特性</h3>
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <p class="text-gray-700 mb-4">Redis事务提供了一种将多个命令打包，然后一次性、按顺序地执行的机制。但与传统数据库的事务相比，Redis事务的ACID特性有所弱化：</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-lg font-medium text-gray-900 mb-2">Redis事务支持的特性</h4>
+                            <ul class="list-disc pl-6 text-gray-600">
+                                <li><strong>原子性(Atomicity)</strong>：部分支持，所有命令要么全部执行，要么全不执行，但命令执行错误不会导致回滚</li>
+                                <li><strong>隔离性(Isolation)</strong>：完全支持，事务执行期间不会被其他命令打断</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-medium text-gray-900 mb-2">Redis事务不支持的特性</h4>
+                            <ul class="list-disc pl-6 text-gray-600">
+                                <li><strong>一致性(Consistency)</strong>：不保证，语法错误会导致整个事务失败，运行时错误不会影响其他命令执行</li>
+                                <li><strong>持久性(Durability)</strong>：取决于持久化配置，不是事务本身的特性</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h4 class="text-lg font-medium text-gray-900 mb-2">使用Lua脚本替代事务</h4>
+                        <p class="text-gray-600">Lua脚本提供了比Redis事务更强的原子性保证，因为脚本作为一个整体执行，且执行过程中不会被其他命令打断。对于需要条件判断和复杂逻辑的场景，Lua脚本是更好的选择。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <footer class="bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 border-t border-gray-200 mt-12">
+        <div class="max-w-4xl mx-auto text-center">
+            <p class="text-gray-500 text-sm">© 2023 Redis高可用与集群技术详解 | 本文档仅供学习参考</p>
+            <p class="text-gray-400 text-xs mt-2">最后更新: 2023-11-30</p>
+        </div>
+    </footer>
+    <script>
+        // 重写Mermaid初始化部分 - 使用更简单、更直接的方式
+        document.addEventListener('DOMContentLoaded', function() {
+            // 先进行基础配置
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'default',
+                securityLevel: 'loose',
+                fontFamily: 'Noto Sans SC, Inter, sans-serif',
+            });
+            
+            // 滚动事件监听
+            window.addEventListener('scroll', updateProgressBar);
+            
+            // 确保页面完全加载后再尝试渲染
+            setTimeout(function() {
+                console.log("开始渲染Mermaid图表...");
+                
+                try {
+                    // 先清除所有已处理标记
+                    document.querySelectorAll('.mermaid').forEach(diagram => {
+                        if(diagram.hasAttribute('data-processed')) {
+                            diagram.removeAttribute('data-processed');
+                        }
+                    });
+                    
+                    // 手动渲染每个图表
+                    let sentinel = document.getElementById('sentinel-diagram');
+                    let cluster = document.getElementById('cluster-diagram');
+                    let summary = document.getElementById('summary-diagram');
+                    
+                    if(sentinel) mermaid.render('sentinel-svg', sentinel.textContent).then(result => {
+                        sentinel.innerHTML = result.svg;
+                    }).catch(err => console.error('哨兵图渲染错误:', err));
+                    
+                    if(cluster) mermaid.render('cluster-svg', cluster.textContent).then(result => {
+                        cluster.innerHTML = result.svg;
+                    }).catch(err => console.error('集群图渲染错误:', err));
+                    
+                    if(summary) {
+                        console.log("尝试渲染思维导图，内容:", summary.textContent);
+                        mermaid.render('summary-svg', summary.textContent).then(result => {
+                            summary.innerHTML = result.svg;
+                            
+                            // 应用思维导图样式
+                            setTimeout(() => {
+                                const svg = summary.querySelector('svg');
+                                if (svg) {
+                                    svg.style.width = '100%';
+                                    svg.style.maxWidth = '100%';
+                                    svg.style.maxHeight = '500px';
+                                    
+                                    // 样式根节点
+                                    const rootNode = svg.querySelector('.mindmap-node.root');
+                                    if (rootNode) {
+                                        const circle = rootNode.querySelector('circle');
+                                        if (circle) {
+                                            circle.setAttribute('fill', '#dc2626');
+                                            circle.setAttribute('stroke', '#b91c1c');
+                                        }
+                                        
+                                        const text = rootNode.querySelector('text');
+                                        if (text) {
+                                            text.setAttribute('fill', 'white');
+                                            text.style.fontWeight = 'bold';
+                                        }
+                                    }
+                                }
+                            }, 100);
+                        }).catch(err => {
+                            console.error('思维导图渲染错误:', err);
+                            
+                            // 备用方案：使用简单版本重试
+                            try {
+                                const simpleVersion = `
+mindmap
+  root((Redis高可用与集群))
+    哨兵模式
+      监控主从节点
+      自动故障转移
+    集群模式
+      数据分片
+      哈希槽分配
+    内存管理
+      淘汰策略
+      大Key优化
+    性能优化
+      Pipeline批量操作
+      Lua脚本`;
+                                
+                                mermaid.render('summary-svg-backup', simpleVersion).then(result => {
+                                    summary.innerHTML = result.svg;
+                                });
+                            } catch(backupErr) {
+                                console.error('备用思维导图也失败:', backupErr);
+                                // 最终备用：显示简单文本列表
+                                summary.innerHTML = `
+<div class="p-4">
+    <h3 class="font-bold text-lg mb-2">Redis高可用与集群</h3>
+    <ul class="list-disc pl-5">
+        <li class="mb-2"><strong>哨兵模式</strong>: 监控主从节点、自动故障转移</li>
+        <li class="mb-2"><strong>集群模式</strong>: 数据分片、哈希槽分配</li>
+        <li class="mb-2"><strong>内存管理</strong>: 淘汰策略、大Key优化</li>
+        <li class="mb-2"><strong>性能优化</strong>: Pipeline批量操作、Lua脚本</li>
+    </ul>
+</div>`;
+                            }
+                        });
+                    }
+                } catch(e) {
+                    console.error('Mermaid全局初始化错误:', e);
+                }
+            }, 800);
+        });
+
+        // 优化的复制代码功能
+        function copyCode(button) {
+            const codeBlock = button.parentElement.nextElementSibling;
+            const code = codeBlock.textContent;
+            
+            // 添加复制中视觉反馈
+            button.classList.add('copied');
+            
+            // 创建临时textarea元素来复制内容
+            const textarea = document.createElement('textarea');
+            textarea.value = code;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            
+            // 选择并复制文本
+            textarea.select();
+            try {
+                const successful = document.execCommand('copy');
+                const originalText = button.textContent;
+                button.textContent = '已复制!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('复制失败:', err);
+                button.textContent = '复制失败';
+                button.classList.remove('copied');
+                setTimeout(() => {
+                    button.textContent = '复制';
+                }, 2000);
+                alert('复制失败，请手动复制');
+            }
+            
+            // 移除临时元素
+            document.body.removeChild(textarea);
+        }
+        
+        // 进度条功能
+        function updateProgressBar() {
+            const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+            const clientHeight = document.documentElement.clientHeight || window.innerHeight;
+            const scrollPercentage = (scrollTop / (scrollHeight - clientHeight)) * 100;
+            document.getElementById('progressBar').style.width = scrollPercentage + '%';
+        }
+        
+        // 窗口大小改变时更新
+        window.addEventListener('resize', function() {
+            updateProgressBar();
+            
+            // 防抖动处理
+            clearTimeout(window.resizeTimer);
+            window.resizeTimer = setTimeout(function() {
+                // 如果宽度变化超过一定值，重新渲染图表
+                if(window.lastWidth && Math.abs(window.lastWidth - window.innerWidth) > 100) {
+                    location.reload(); // 简单但有效的解决方案
+                }
+                window.lastWidth = window.innerWidth;
+            }, 500);
+        });
+
+        // 方向变化时也重新渲染
+        window.addEventListener('orientationchange', function() {
+            setTimeout(() => {
+                updateProgressBar();
+                location.reload(); // 重新加载页面以确保图表渲染正确
+            }, 500);
+        });
+    </script>
+</body>
+</html>

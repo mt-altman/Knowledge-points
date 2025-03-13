@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redis 基本概念详解</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Inter:wght@400;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --primary-color: #dc382c;
+      --secondary-color: #a41e11;
+      --bg-color: #f9f6f6;
+      --code-bg: #f5f5f5;
+    }
+    body {
+      font-family: 'Noto Sans SC', 'Inter', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: var(--bg-color);
+    }
+    h1, h2, h3, h4 {
+      font-weight: 700;
+    }
+    code {
+      font-family: 'Fira Code', monospace;
+      background-color: var(--code-bg);
+      padding: 0.1em 0.3em;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+    pre code {
+      display: block;
+      padding: 1em;
+      overflow-x: auto;
+      line-height: 1.5;
+      background-color: #282c34;
+      color: #abb2bf;
+      border-radius: 5px;
+    }
+    .term {
+      cursor: pointer;
+      border-bottom: 1px dashed #666;
+      position: relative;
+    }
+    .term:hover {
+      color: var(--primary-color);
+    }
+    .tooltip {
+      display: none;
+      position: absolute;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      z-index: 100;
+      width: 300px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      font-size: 0.9em;
+      top: 100%;
+      left: 0;
+    }
+    .term:hover .tooltip {
+      display: block;
+    }
+    .progress-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background-color: #f3f3f3;
+      z-index: 1000;
+    }
+    .progress-bar {
+      height: 4px;
+      background-color: var(--primary-color);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    @media print {
+      .progress-container {
+        display: none;
+      }
+      .interactive-controls {
+        display: none;
+      }
+      .tooltip {
+        display: none !important;
+      }
+      body {
+        background-color: white;
+      }
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .copy-btn {
+      position: absolute;
+      right: 5px;
+      top: 5px;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 12px;
+      color: #ddd;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover {
+      background: rgba(255,255,255,0.3);
+      color: white;
+    }
+    .code-container {
+      position: relative;
+    }
+  </style>
+</head>
+<body class="mx-auto px-4 py-8 max-w-4xl">
+  <div class="progress-container">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <header class="mb-8 text-center">
+    <div class="bg-gradient-to-r from-red-600 to-red-800 text-white py-6 px-4 rounded-lg shadow-lg">
+      <h1 class="text-3xl md:text-4xl font-bold mb-2">Redis 基本概念详解</h1>
+      <p class="text-lg opacity-90">内存数据库与键值存储系统</p>
+      <div class="mt-4 inline-block bg-white text-red-800 px-3 py-1 rounded-full text-sm font-semibold">难度级别：<span id="difficultyLevel">中级</span></div>
+    </div>
+  </header>
+
+  <main>
+    <section id="definition" class="mb-10 bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-bold mb-4 text-red-700 border-b pb-2">1. Redis 定义与核心特性</h2>
+      
+      <p class="mb-4">
+        <span class="term font-semibold">Redis (Remote Dictionary Server)</span> 是一个开源的、基于内存的数据结构存储系统，它可以用作数据库、缓存和消息中间件。
+        <span class="tooltip">Redis 发音为 /ˈrɛdɪs/，由意大利程序员 Salvatore Sanfilippo 于2009年开发，现在由 Redis Labs 公司维护。</span>
+      </p>
+
+      <div class="grid md:grid-cols-2 gap-6 mt-6">
+        <div class="bg-red-50 p-4 rounded-md">
+          <h3 class="font-bold text-lg mb-2">核心特性</h3>
+          <ul class="list-disc pl-5 space-y-2">
+            <li><span class="font-semibold">内存存储</span>：所有数据存储在内存中，提供极高的读写性能</li>
+            <li><span class="font-semibold">多种数据结构</span>：支持字符串、哈希、列表、集合、有序集合等</li>
+            <li><span class="font-semibold">原子操作</span>：Redis的所有操作都是原子性的，支持事务</li>
+            <li><span class="font-semibold">持久化机制</span>：支持RDB和AOF两种持久化方式</li>
+            <li><span class="font-semibold">主从复制</span>：支持主从复制和高可用配置</li>
+          </ul>
+        </div>
+        
+        <div class="bg-gray-50 p-4 rounded-md">
+          <h3 class="font-bold text-lg mb-2">典型应用场景</h3>
+          <ul class="list-disc pl-5 space-y-2">
+            <li><span class="font-semibold">缓存系统</span>：减轻数据库负载，提高响应速度</li>
+            <li><span class="font-semibold">计数器与限流</span>：如API调用限制、页面访问统计</li>
+            <li><span class="font-semibold">会话存储</span>：存储用户会话信息，实现分布式会话</li>
+            <li><span class="font-semibold">排行榜系统</span>：利用有序集合实现实时排行榜</li>
+            <li><span class="font-semibold">消息队列</span>：基于List实现简单的消息队列功能</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="data-structures" class="mb-10 bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-bold mb-4 text-red-700 border-b pb-2">2. Redis 数据结构与基本操作</h2>
+
+      <div class="mb-6">
+        <p class="mb-4">Redis 支持多种数据结构，每种数据结构都有其特定的应用场景和操作命令。以下是五种核心数据类型：</p>
+        
+        <div class="interactive-controls mb-4">
+          <div class="flex border-b">
+            <button class="tab-btn px-4 py-2 focus:outline-none active-tab" data-target="string">String</button>
+            <button class="tab-btn px-4 py-2 focus:outline-none" data-target="hash">Hash</button>
+            <button class="tab-btn px-4 py-2 focus:outline-none" data-target="list">List</button>
+            <button class="tab-btn px-4 py-2 focus:outline-none" data-target="set">Set</button>
+            <button class="tab-btn px-4 py-2 focus:outline-none" data-target="zset">Sorted Set</button>
+          </div>
+          
+          <div id="string" class="tab-content active p-4 border border-t-0 rounded-b-md">
+            <h3 class="font-bold text-lg mb-2">String (字符串)</h3>
+            <p class="mb-2">最基本的数据类型，可以存储文本、整数或二进制数据，单个value最大可存储512MB。</p>
+            <p class="mb-2"><strong>应用场景：</strong>缓存、计数器、分布式锁、session存储</p>
+            <div class="code-container mt-3">
+              <pre><code># 设置键值对
+SET user:1:name "张三"
+
+# 获取值
+GET user:1:name
+
+# 递增计数器
+SET pageviews 0
+INCR pageviews  # 返回1
+INCR pageviews  # 返回2</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+          </div>
+          
+          <div id="hash" class="tab-content p-4 border border-t-0 rounded-b-md">
+            <h3 class="font-bold text-lg mb-2">Hash (哈希表)</h3>
+            <p class="mb-2">存储字段-值对的映射表，适合存储对象数据，每个哈希可存储2^32-1个键值对。</p>
+            <p class="mb-2"><strong>应用场景：</strong>用户信息、商品信息等对象数据缓存</p>
+            <div class="code-container mt-3">
+              <pre><code># 设置用户信息
+HSET user:1 name "张三" age 25 city "北京"
+
+# 获取单个字段
+HGET user:1 name  # 返回 "张三"
+
+# 获取所有字段和值
+HGETALL user:1</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+          </div>
+          
+          <div id="list" class="tab-content p-4 border border-t-0 rounded-b-md">
+            <h3 class="font-bold text-lg mb-2">List (列表)</h3>
+            <p class="mb-2">按照插入顺序排序的字符串元素集合，可以从头部或尾部添加元素，最多可存储2^32-1个元素。</p>
+            <p class="mb-2"><strong>应用场景：</strong>消息队列、最新动态、评论列表</p>
+            <div class="code-container mt-3">
+              <pre><code># 从左侧添加元素（头部）
+LPUSH messages "消息3" "消息2" "消息1"
+
+# 从右侧添加元素（尾部）
+RPUSH messages "消息4" "消息5"
+
+# 获取列表范围
+LRANGE messages 0 -1  # 获取所有元素
+
+# 弹出左侧元素（实现队列）
+LPOP messages</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+          </div>
+          
+          <div id="set" class="tab-content p-4 border border-t-0 rounded-b-md">
+            <h3 class="font-bold text-lg mb-2">Set (集合)</h3>
+            <p class="mb-2">无序且唯一的字符串元素集合，支持集合间的交集、并集、差集等操作，最多可存储2^32-1个元素。</p>
+            <p class="mb-2"><strong>应用场景：</strong>标签系统、共同好友、黑白名单</p>
+            <div class="code-container mt-3">
+              <pre><code># 添加元素到集合
+SADD tags:user:1 "音乐" "电影" "旅行"
+
+# 判断元素是否在集合中
+SISMEMBER tags:user:1 "音乐"  # 返回1表示存在
+
+# 获取所有元素
+SMEMBERS tags:user:1
+
+# 计算交集（共同兴趣）
+SINTER tags:user:1 tags:user:2</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+          </div>
+          
+          <div id="zset" class="tab-content p-4 border border-t-0 rounded-b-md">
+            <h3 class="font-bold text-lg mb-2">Sorted Set (有序集合)</h3>
+            <p class="mb-2">类似集合，但每个元素关联一个分数，根据分数排序，元素唯一但分数可重复。</p>
+            <p class="mb-2"><strong>应用场景：</strong>排行榜、优先级队列、带权重的数据集</p>
+            <div class="code-container mt-3">
+              <pre><code># 添加带分数的元素
+ZADD leaderboard 100 "玩家A" 85 "玩家B" 95 "玩家C"
+
+# 获取元素分数
+ZSCORE leaderboard "玩家A"  # 返回100
+
+# 获取排名（从高到低）
+ZREVRANGE leaderboard 0 2 WITHSCORES  # 前三名及分数
+
+# 增加分数
+ZINCRBY leaderboard 10 "玩家B"  # 增加10分</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <h3 class="font-bold text-lg mb-2">扩展数据类型</h3>
+        <div class="grid md:grid-cols-3 gap-4">
+          <div class="bg-gray-50 p-3 rounded-md">
+            <h4 class="font-semibold">HyperLogLog</h4>
+            <p class="text-sm">用于基数统计，只需很小内存即可计算集合中不重复元素数量</p>
+            <p class="text-sm mt-1"><strong>应用：</strong>UV统计、独立访客计数</p>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-md">
+            <h4 class="font-semibold">Geo</h4>
+            <p class="text-sm">用于存储地理位置信息，支持计算距离、范围查询等</p>
+            <p class="text-sm mt-1"><strong>应用：</strong>附近的人、位置服务</p>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-md">
+            <h4 class="font-semibold">Stream</h4>
+            <p class="text-sm">Redis 5.0新增，类似消息队列，但有更丰富的消息模型</p>
+            <p class="text-sm mt-1"><strong>应用：</strong>事件流处理、消息中间件</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="persistence" class="mb-10 bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-bold mb-4 text-red-700 border-b pb-2">3. Redis 持久化机制</h2>
+      
+      <p class="mb-4">作为内存数据库，Redis需要持久化机制来保证数据在服务器重启后不会丢失。Redis提供了两种主要的持久化方式：</p>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <div class="border rounded-md overflow-hidden">
+          <div class="bg-red-600 text-white p-3">
+            <h3 class="font-bold">RDB (Redis Database)</h3>
+          </div>
+          <div class="p-4">
+            <p class="mb-2"><strong>原理：</strong>在指定的时间间隔内，执行数据集的快照操作，生成二进制文件。</p>
+            <p class="mb-2"><strong>触发方式：</strong></p>
+            <ul class="list-disc pl-5 mb-2">
+              <li>手动执行SAVE或BGSAVE命令</li>
+              <li>根据配置文件中的save参数自动触发</li>
+              <li>执行FLUSHALL命令</li>
+              <li>执行复制（replication）时</li>
+            </ul>
+            <div class="mt-3">
+              <p class="font-semibold text-green-700">优点：</p>
+              <ul class="list-disc pl-5 text-sm">
+                <li>文件紧凑，适合备份和恢复</li>
+                <li>性能影响小，fork子进程执行</li>
+                <li>恢复速度快</li>
+              </ul>
+            </div>
+            <div class="mt-2">
+              <p class="font-semibold text-red-700">缺点：</p>
+              <ul class="list-disc pl-5 text-sm">
+                <li>可能丢失最后一次快照后的数据</li>
+                <li>fork过程中可能导致服务短暂停顿</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="border rounded-md overflow-hidden">
+          <div class="bg-blue-600 text-white p-3">
+            <h3 class="font-bold">AOF (Append Only File)</h3>
+          </div>
+          <div class="p-4">
+            <p class="mb-2"><strong>原理：</strong>记录服务器执行的所有写操作命令，重启时重新执行这些命令来恢复数据。</p>
+            <p class="mb-2"><strong>同步策略：</strong></p>
+            <ul class="list-disc pl-5 mb-2">
+              <li>always：每次写操作都同步到AOF文件</li>
+              <li>everysec：每秒同步一次（默认）</li>
+              <li>no：由操作系统决定同步时机</li>
+            </ul>
+            <div class="mt-3">
+              <p class="font-semibold text-green-700">优点：</p>
+              <ul class="list-disc pl-5 text-sm">
+                <li>数据安全性高，最多丢失1秒数据</li>
+                <li>可读性高，文件是纯文本</li>
+                <li>支持增量追加</li>
+              </ul>
+            </div>
+            <div class="mt-2">
+              <p class="font-semibold text-red-700">缺点：</p>
+              <ul class="list-disc pl-5 text-sm">
+                <li>文件体积较大</li>
+                <li>恢复速度较慢</li>
+                <li>可能对性能有一定影响</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 p-4 rounded-md">
+        <h3 class="font-bold mb-2">混合持久化 (Redis 4.0+)</h3>
+        <p class="mb-3">Redis 4.0引入了混合持久化机制，结合了RDB和AOF的优点。</p>
+        <p><strong>工作原理：</strong>在AOF重写时，Redis会先以RDB格式将当前内存数据快照写入新的AOF文件，再将重写缓冲区的增量命令以AOF格式追加到文件末尾。</p>
+        <div class="mt-3">
+          <p class="font-semibold text-green-700">优势：</p>
+          <ul class="list-disc pl-5">
+            <li>结合了RDB的快速恢复和AOF的数据安全性</li>
+            <li>降低了AOF文件的大小</li>
+            <li>提高了数据恢复的速度</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <div class="code-container">
+          <pre><code># Redis配置文件中的持久化相关配置
+
+# RDB配置
+save 900 1      # 900秒内有至少1个键被修改，触发保存
+save 300 10     # 300秒内有至少10个键被修改，触发保存
+save 60 10000   # 60秒内有至少10000个键被修改，触发保存
+dbfilename dump.rdb  # RDB文件名
+dir ./          # RDB文件保存路径
+
+# AOF配置
+appendonly yes  # 启用AOF持久化
+appendfilename "appendonly.aof"  # AOF文件名
+appendfsync everysec  # 同步策略：always, everysec, no
+
+# 混合持久化配置
+aof-use-rdb-preamble yes  # 启用混合持久化</code></pre>
+          <button class="copy-btn">复制</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="replication" class="mb-10 bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-bold mb-4 text-red-700 border-b pb-2">4. Redis 主从复制</h2>
+      
+      <p class="mb-4">Redis主从复制是指将一台Redis服务器的数据复制到其他Redis服务器的功能。通过主从复制，可以实现数据备份、读写分离和高可用性。</p>
+
+      <div class="mb-6">
+        <h3 class="font-bold text-lg mb-3">主从复制原理</h3>
+        <div class="mb-4">
+          <div class="mermaid">
+            graph TD
+              A[主节点 Master] -->|全量同步| B[从节点1 Slave]
+              A -->|增量同步| C[从节点2 Slave]
+              A -->|命令传播| D[从节点3 Slave]
+              style A fill:#f9a,stroke:#333,stroke-width:2px
+              style B fill:#adf,stroke:#333,stroke-width:1px
+              style C fill:#adf,stroke:#333,stroke-width:1px
+              style D fill:#adf,stroke:#333,stroke-width:1px
+          </div>
+        </div>
+        
+        <div class="grid md:grid-cols-3 gap-4 mt-6">
+          <div class="bg-gray-50 p-3 rounded-md">
+            <h4 class="font-semibold">全量同步</h4>
+            <p class="text-sm">当从节点第一次连接主节点，或者长时间断开后重连时，主节点会将完整的数据集发送给从节点。</p>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-md">
+            <h4 class="font-semibold">增量同步</h4>
+            <p class="text-sm">主节点将断线期间执行的写命令记录在复制积压缓冲区，从节点重连后只需同步这部分数据。</p>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-md">
+            <h4 class="font-semibold">命令传播</h4>
+            <p class="text-sm">正常复制状态下，主节点将所有写命令实时发送给从节点，保持数据一致性。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="font-bold text-lg mb-3">主从复制配置</h3>
+        <div class="code-container">
+          <pre><code># 在从节点配置文件中添加
+replicaof 192.168.1.100 6379  # 指定主节点IP和端口
+
+# 或者在从节点运行时执行命令
+REPLICAOF 192.168.1.100 6379
+
+# 查看复制状态
+INFO replication</code></pre>
+          <button class="copy-btn">复制</button>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="font-bold text-lg mb-3">读写分离实现</h3>
+        <p class="mb-3">主从复制可以实现读写分离，提高系统的读取性能：</p>
+        <ul class="list-disc pl-5">
+          <li>主节点负责处理写请求</li>
+          <li>从节点负责处理读请求</li>
+          <li>可以根据读写比例配置不同数量的从节点</li>
+        </ul>
+        
+        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mt-4">
+          <h4 class="font-semibold text-yellow-700">注意事项</h4>
+          <ul class="list-disc pl-5 text-sm">
+            <li>从节点默认是只读的，可以通过配置<code>replica-read-only no</code>修改</li>
+            <li>主从复制存在一定延迟，可能导致数据不一致</li>
+            <li>主节点宕机后，需要手动将从节点提升为主节点，或使用哨兵/集群实现自动故障转移</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="comparison" class="mb-10 bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-bold mb-4 text-red-700 border-b pb-2">5. 比较分析</h2>
+      
+      <h3 class="font-bold text-lg mb-3">持久化方式对比</h3>
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="py-2 px-4 border">特性</th>
+              <th class="py-2 px-4 border">RDB</th>
+              <th class="py-2 px-4 border">AOF</th>
+              <th class="py-2 px-4 border">混合持久化</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">数据安全性</td>
+              <td class="py-2 px-4 border">低，可能丢失最后一次快照后的数据</td>
+              <td class="py-2 px-4 border">高，最多丢失1秒数据（默认配置）</td>
+              <td class="py-2 px-4 border">高，结合两者优点</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">文件大小</td>
+              <td class="py-2 px-4 border">小，二进制格式紧凑</td>
+              <td class="py-2 px-4 border">大，记录所有写命令</td>
+              <td class="py-2 px-4 border">中等，前部分RDB格式，后部分AOF格式</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">恢复速度</td>
+              <td class="py-2 px-4 border">快，直接加载数据</td>
+              <td class="py-2 px-4 border">慢，重新执行所有命令</td>
+              <td class="py-2 px-4 border">较快，结合RDB的快速加载</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">对性能影响</td>
+              <td class="py-2 px-4 border">fork子进程时可能有短暂停顿</td>
+              <td class="py-2 px-4 border">根据同步策略有不同影响</td>
+              <td class="py-2 px-4 border">中等，兼顾性能和安全</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">适用场景</td>
+              <td class="py-2 px-4 border">可以容忍一定数据丢失的场景</td>
+              <td class="py-2 px-4 border">对数据安全性要求高的场景</td>
+              <td class="py-2 px-4 border">大多数生产环境</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-bold text-lg mt-6 mb-3">Redis与其他数据库对比</h3>
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="py-2 px-4 border">特性</th>
+              <th class="py-2 px-4 border">Redis</th>
+              <th class="py-2 px-4 border">Memcached</th>
+              <th class="py-2 px-4 border">MongoDB</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">数据存储</td>
+              <td class="py-2 px-4 border">内存（支持持久化）</td>
+              <td class="py-2 px-4 border">纯内存</td>
+              <td class="py-2 px-4 border">磁盘（内存映射文件）</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">数据结构</td>
+              <td class="py-2 px-4 border">丰富（String, Hash, List, Set, ZSet等）</td>
+              <td class="py-2 px-4 border">简单（String）</td>
+              <td class="py-2 px-4 border">文档（BSON）</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">事务支持</td>
+              <td class="py-2 px-4 border">支持（MULTI/EXEC）</td>
+              <td class="py-2 px-4 border">不支持</td>
+              <td class="py-2 px-4 border">支持</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">持久化</td>
+              <td class="py-2 px-4 border">RDB, AOF, 混合模式</td>
+              <td class="py-2 px-4 border">不支持</td>
+              <td class="py-2 px-4 border">Journal, Snapshot</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-4 border font-semibold">主要应用场景</td>
+              <td class="py-2 px-4 border">缓存、实时计算、消息队列</td>
+              <td class="py-2 px-4 border">纯缓存</td>
+              <td class="py-2 px-4 border">文档存储、大数据分析</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="summary" class="mb-10 bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-bold mb-4 text-red-700 border-b pb-2">6. 总结</h2>
+      
+      <div class="mb-6">
+        <h3 class="font-bold text-lg mb-3">Redis核心概念思维导图</h3>
+        <div class="mermaid">
+          mindmap
+            root((Redis))
+              数据结构
+                String
+                Hash
+                List
+                Set
+                Sorted Set
+                扩展类型
+                  HyperLogLog
+                  Geo
+                  Stream
+              持久化
+                RDB
+                  快照
+                  SAVE/BGSAVE
+                AOF
+                  追加写操作
+                  三种同步策略
+                混合持久化
+                  RDB+AOF结合
+              主从复制
+                全量同步
+                增量同步
+                命令传播
+                读写分离
+              应用场景
+                缓存系统
+                计数器
+                会话存储
+                排行榜
+                消息队列
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="font-bold text-lg mb-3">常见问题与解决方案</h3>
+        <div class="space-y-3">
+          <div class="bg-gray-50 p-3 rounded-md">
+            <h4 class="font-semibold">问题：Redis内存占用过高怎么办？</h4>
+            <p class="text-sm">解决方案：配置内存淘汰策略（maxmemory-policy），如LRU、LFU等；设置过期时间；优化数据结构；使用Redis集群分担负载。</p>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-md">
+            <h4 class="font-semibold">问题：Redis持久化导致性能下降？</h4>
+            <p class="text-sm">解决方案：调整持久化频率；使用混合持久化；将RDB和AOF文件存储在不同的磁盘；增加系统内存；使用高性能SSD。</p>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-md">
+            <h4 class="font-semibold">问题：主从复制延迟过大？</h4>
+            <p class="text-sm">解决方案：增加带宽；减少主节点数据量；调整复制缓冲区大小；避免使用过大的value；合理设置从节点数量。</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="font-bold text-lg mb-3">最佳实践</h3>
+        <ul class="list-disc pl-5 space-y-2">
+          <li>根据业务需求选择合适的持久化策略，通常生产环境推荐混合持久化</li>
+          <li>合理设置键的过期时间，避免内存无限增长</li>
+          <li>使用批量操作命令（MSET, MGET, HMSET等）减少网络往返</li>
+          <li>避免使用高耗时命令（如KEYS）和大value</li>
+          <li>在主从架构中实现读写分离，提高系统吞吐量</li>
+          <li>考虑使用Redis Sentinel或Redis Cluster实现高可用</li>
+          <li>定期监控Redis性能指标，如内存使用、命令执行时间等</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="references" class="bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-bold mb-4 text-red-700 border-b pb-2">7. 参考资料</h2>
+      
+      <div class="grid md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-bold text-lg mb-3">中文资源</h3>
+          <ul class="list-disc pl-5 space-y-2">
+            <li><a href="https://redis.io/docs/" class="text-blue-600 hover:underline" target="_blank">Redis 官方文档中文版</a></li>
+            <li><a href="https://cloud.tencent.com/developer/article/2392018" class="text-blue-600 hover:underline" target="_blank">超详细！彻底说明白Redis持久化-腾讯云</a></li>
+            <li><a href="https://cloud.tencent.com/developer/article/1436783" class="text-blue-600 hover:underline" target="_blank">十二张图带你了解 Redis 的数据结构和对象系统</a></li>
+            <li><a href="https://segmentfault.com/a/1190000039208726" class="text-blue-600 hover:underline" target="_blank">Redis专题：万字长文详解持久化原理</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <h3 class="font-bold text-lg mb-3">英文资源</h3>
+          <ul class="list-disc pl-5 space-y-2">
+            <li><a href="https://redis.io/documentation" class="text-blue-600 hover:underline" target="_blank">Redis Official Documentation</a></li>
+            <li><a href="https://redis.io/topics/persistence" class="text-blue-600 hover:underline" target="_blank">Redis Persistence</a></li>
+            <li><a href="https://redis.io/topics/replication" class="text-blue-600 hover:underline" target="_blank">Redis Replication</a></li>
+            <li><a href="https://redis.io/topics/data-types" class="text-blue-600 hover:underline" target="_blank">Redis Data Types</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <h3 class="font-bold text-lg mb-3">推荐书籍</h3>
+        <ul class="list-disc pl-5 space-y-2">
+          <li>《Redis设计与实现》- 黄健宏</li>
+          <li>《Redis开发与运维》- 付磊 & 张益军</li>
+          <li>《Redis实战》- Josiah L. Carlson</li>
+          <li>《Redis in Action》- Josiah L. Carlson</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="mt-8 text-center text-gray-600 text-sm">
+    <p>© 2023 Redis基本概念详解 | 内容仅供学习参考</p>
+  </footer>
+
+  <script>
+    // 初始化Mermaid图表
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    
+    // 标签页切换
+    document.querySelectorAll('.tab-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        // 移除所有活动标签
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.classList.remove('active-tab');
+          btn.classList.remove('text-red-700');
+          btn.classList.remove('border-b-2');
+          btn.classList.remove('border-red-700');
+        });
+        
+        // 隐藏所有内容
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.remove('active');
+        });
+        
+        // 激活当前标签
+        button.classList.add('active-tab');
+        button.classList.add('text-red-700');
+        button.classList.add('border-b-2');
+        button.classList.add('border-red-700');
+        
+        // 显示对应内容
+        const target = button.getAttribute('data-target');
+        document.getElementById(target).classList.add('active');
+      });
+    });
+    
+    // 复制代码功能
+    document.querySelectorAll('.copy-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const codeBlock = button.parentElement.querySelector('code');
+        const textArea = document.createElement('textarea');
+        textArea.value = codeBlock.textContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        button.textContent = '已复制!';
+        setTimeout(() => {
+          button.textContent = '复制';
+        }, 2000);
+      });
+    });
+    
+    // 进度条
+    window.addEventListener('scroll', () => {
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollPercentage = (scrollTop / (documentHeight - windowHeight)) * 100;
+      document.getElementById('progressBar').style.width = scrollPercentage + '%';
+    });
+    
+    // 难度级别切换
+    const difficultyLevels = ['初级', '中级', '高级'];
+    let currentLevel = 1; // 默认中级
+    
+    document.getElementById('difficultyLevel').addEventListener('click', () => {
+      currentLevel = (currentLevel + 1) % 3;
+      document.getElementById('difficultyLevel').textContent = difficultyLevels[currentLevel];
+      
+      // 根据难度级别调整内容显示
+      const body = document.body;
+      body.classList.remove('beginner', 'intermediate', 'advanced');
+      body.classList.add(['beginner', 'intermediate', 'advanced'][currentLevel]);
+      
+      // 这里可以添加更多的内容调整逻辑
+    });
+  </script>
+</body>
+</html>
