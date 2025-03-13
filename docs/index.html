@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技术文档导航</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #3498db;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .topics-list {
+            list-style: none;
+        }
+        .topic-item {
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .topic-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        .topic-link {
+            display: block;
+            padding: 20px;
+            text-decoration: none;
+            color: #333;
+            background-color: #fff;
+            position: relative;
+        }
+        .topic-link::after {
+            content: "→";
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #3498db;
+            font-size: 1.2rem;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        .topic-link:hover::after {
+            opacity: 1;
+            transform: translate(5px, -50%);
+        }
+        .topic-title {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: #3498db;
+        }
+        .topic-desc {
+            color: #666;
+        }
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+        .update-info {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #999;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← 返回首页</a>
+        
+        <header>
+            <h1>技术文档导航</h1>
+        </header>
+
+        <ul class="topics-list">
+            
+            <li class="topic-item">
+                <a href="cicd/" class="topic-link">
+                    <h2 class="topic-title">Cicd</h2>
+                    <p class="topic-desc">持续集成和持续部署的流程、工具和实践指南。</p>
+                </a>
+            </li>
+            
+            <li class="topic-item">
+                <a href="data-structure/" class="topic-link">
+                    <h2 class="topic-title">Data Structure</h2>
+                    <p class="topic-desc">常见数据结构的原理、实现和应用场景分析。</p>
+                </a>
+            </li>
+            
+            <li class="topic-item">
+                <a href="mysql/" class="topic-link">
+                    <h2 class="topic-title">MySQL</h2>
+                    <p class="topic-desc">MySQL 数据库的基础知识、优化技巧和进阶内容。</p>
+                </a>
+            </li>
+            
+            <li class="topic-item">
+                <a href="redis/" class="topic-link">
+                    <h2 class="topic-title">Redis</h2>
+                    <p class="topic-desc">Redis 数据库的核心概念、用法、配置和最佳实践。</p>
+                </a>
+            </li>
+        </ul>
+
+        <footer>
+            <p>&copy; 2025 技术文档中心 | 基于 <a href="https://pages.github.com/" target="_blank">GitHub Pages</a> 构建</p>
+            <p class="update-info">最后更新: 2025-03-13 20:04:40</p>
+        </footer>
+    </div>
+</body>
+</html>
+    
