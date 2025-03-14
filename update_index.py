@@ -78,9 +78,15 @@ def extract_description(directory_path):
 
 def extract_html_title(file_path):
     """从HTML文件中提取标题"""
+    is_hidden = False
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
+            
+            # 检查是否有隐藏标记
+            hidden_match = re.search(r'<meta\s+name=["\']hidden["\']\s+content=["\']true["\']\s*/?>', content)
+            if hidden_match:
+                is_hidden = True
             
             # 先尝试提取<title>标签
             title_match = re.search(r'<title>(.*?)</title>', content)
@@ -88,17 +94,17 @@ def extract_html_title(file_path):
                 title = title_match.group(1).strip()
                 # 移除可能的网站名称后缀
                 title = re.sub(r'\s*[|｜-]\s*.*$', '', title)
-                return title
+                return title, is_hidden
             
             # 如果没有title，尝试提取第一个h1
             h1_match = re.search(r'<h1[^>]*>(.*?)</h1>', content)
             if h1_match:
-                return re.sub(r'<.*?>', '', h1_match.group(1)).strip()
+                return re.sub(r'<.*?>', '', h1_match.group(1)).strip(), is_hidden
             
             # 如果没有h1，尝试提取第一个h2
             h2_match = re.search(r'<h2[^>]*>(.*?)</h2>', content)
             if h2_match:
-                return re.sub(r'<.*?>', '', h2_match.group(1)).strip()
+                return re.sub(r'<.*?>', '', h2_match.group(1)).strip(), is_hidden
                 
     except Exception as e:
         print(f"提取文件标题时出错: {file_path} - {str(e)}")
@@ -106,7 +112,7 @@ def extract_html_title(file_path):
     # 如果无法提取标题，返回格式化的文件名
     base_name = os.path.basename(file_path)
     name_without_ext = os.path.splitext(base_name)[0]
-    return get_pretty_name(name_without_ext)
+    return get_pretty_name(name_without_ext), is_hidden
 
 def scan_docs_directory():
     """扫描docs目录，返回主题列表及其描述和文件列表（带有标题）"""
@@ -144,14 +150,15 @@ def scan_docs_directory():
                             size_str = f"{file_size/(1024*1024):.1f} MB"
                         
                         # 提取文章标题
-                        article_title = extract_html_title(file_item)
+                        article_title, is_hidden = extract_html_title(file_item)
                         
                         files.append({
                             "name": file_item.name,
                             "title": article_title,
                             "path": str(rel_path),
                             "size": size_str,
-                            "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(file_item.stat().st_mtime))
+                            "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(file_item.stat().st_mtime)),
+                            "is_hidden": is_hidden
                         })
             
             topics.append({
@@ -331,14 +338,17 @@ def generate_docs_index_html(topics):
     for topic in topics:
         # 生成文章列表
         articles_html = ""
-        if topic['files']:
+        # 过滤掉隐藏的文章
+        visible_files = [file for file in topic['files'] if not file.get('is_hidden', False)]
+        
+        if visible_files:
             articles_html = "\n".join([
                 f"""
                 <li class="article-item">
                     <a href="{file['path']}" class="article-link">{file['title']}</a>
                     <span class="article-meta">{file['modified']}</span>
                 </li>
-                """ for file in sorted(topic['files'], key=lambda x: x['modified'], reverse=True)
+                """ for file in sorted(visible_files, key=lambda x: x['modified'], reverse=True)
             ])
         else:
             articles_html = '<li class="no-articles">暂无文章</li>'
@@ -377,6 +387,131 @@ def generate_docs_index_html(topics):
     
     print(f"已更新docs/index.html，包含 {len(topics)} 个主题")
 
+def add_home_button_to_pages():
+    """为所有子页面添加或更新返回首页按钮"""
+    docs_dir = Path("docs")
+    
+    if not docs_dir.exists() or not docs_dir.is_dir():
+        print("警告: docs目录不存在")
+        return
+    
+    # 遍历docs目录下的所有子目录中的HTML文件
+    for html_file in docs_dir.rglob('*.html'):
+        # 跳过index.html文件，它是主页
+        if html_file.name == 'index.html' and html_file.parent == docs_dir:
+            continue
+        
+        with open(html_file, 'r', encoding='utf-8') as file:
+            content = file.read()
+        
+        # 先移除所有已存在的返回首页按钮和相关样式，避免重复
+        updated_content = content
+        
+        # 移除多余的style标签
+        updated_content = re.sub(r'(\s*</style>){2,}', '</style>', updated_content)
+        
+        # 移除所有已存在的返回首页按钮
+        updated_content = re.sub(
+            r'<a [^>]*class="home-button-fixed"[^>]*>.*?</a>',
+            '',
+            updated_content,
+            flags=re.DOTALL
+        )
+        
+        # 清理其他可能存在的返回首页按钮
+        updated_content = re.sub(
+            r'<div[^>]*>\s*<a[^>]*class="home-link"[^>]*>.*?返回首页\s*</a>\s*</div>',
+            '',
+            updated_content,
+            flags=re.DOTALL
+        )
+        
+        updated_content = re.sub(
+            r'<div class="mb-4">\s*<a href="[^"]*" class="home-link">.*?返回首页\s*</a>\s*</div>',
+            '',
+            updated_content,
+            flags=re.DOTALL
+        )
+        
+        # 移除旧的按钮样式
+        updated_content = re.sub(
+            r'/\* 返回首页按钮样式 \*/.*?}(\s*</style>)',
+            r'\1',
+            updated_content,
+            flags=re.DOTALL
+        )
+        
+        # 添加新的样式定义
+        if '<style' in updated_content and '</style>' in updated_content:
+            updated_content = re.sub(
+                r'(</style>)',
+                r'''
+        /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }
+    \1''',
+                updated_content,
+                count=1  # 只替换第一个</style>，避免重复
+            )
+        
+        # 添加新的按钮元素
+        if updated_content.find('<body') != -1:
+            # 在body标签后添加新按钮
+            updated_content = re.sub(
+                r'<body[^>]*>',
+                r'''\g<0>
+    <a href="../index.html" class="home-button-fixed" title="返回首页">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+    </a>''',
+                updated_content,
+                count=1  # 只添加一次
+            )
+                
+        # 保存更新后的内容
+        with open(html_file, 'w', encoding='utf-8') as file:
+            file.write(updated_content)
+    
+    print("所有页面的返回首页按钮已更新为仅图标样式")
+
 def update_indexes():
     """扫描目录并更新索引文件"""
     global last_dir_hash
@@ -396,7 +531,11 @@ def update_indexes():
     
     # 生成docs/index.html
     generate_docs_index_html(topics)
-    print("索引文件已自动更新")
+    
+    # 为所有页面添加/更新返回首页按钮
+    add_home_button_to_pages()
+    
+    print("索引文件和返回首页按钮已自动更新")
 
 class DocsChangeHandler(FileSystemEventHandler):
     """处理文档目录的文件系统事件"""

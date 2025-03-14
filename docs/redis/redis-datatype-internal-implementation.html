@@ -102,9 +102,71 @@
         .copy-button:hover {
             background-color: #ddd;
         }
+    
+        
+        
+    
+        
+    
+        
+    
+        /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
+    <a href="../index.html" class="home-button-fixed" title="返回首页">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+    </a>
+    
+    
+    
+    
+    
+    
+    
+    
+    
     <header class="bg-gradient-to-r from-red-600 to-red-800 text-white py-8 px-4 shadow-md">
         <div class="container mx-auto">
             <h1 class="text-3xl md:text-4xl font-bold mb-2">Redis数据类型内部实现机制详解</h1>
