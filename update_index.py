@@ -342,19 +342,16 @@ def generate_docs_index_html(topics):
         visible_files = [file for file in topic['files'] if not file.get('is_hidden', False)]
         
         if visible_files:
-            articles_html = "\n".join([
-                f"""
-                <li class="article-item">
+            articles_html = "".join([
+                f"""<li class="article-item">
                     <a href="{file['path']}" class="article-link">{file['title']}</a>
                     <span class="article-meta">{file['modified']}</span>
-                </li>
-                """ for file in sorted(visible_files, key=lambda x: x['modified'], reverse=True)
+                </li>""" for file in sorted(visible_files, key=lambda x: x['modified'], reverse=True)
             ])
         else:
             articles_html = '<li class="no-articles">暂无文章</li>'
 
-        item = f"""
-            <li class="topic-item">
+        item = f"""<li class="topic-item">
                 <div class="topic-header">
                     <h2 class="topic-title">{topic['pretty_name']}</h2>
                     <p class="topic-desc">{topic['description']}</p>
@@ -362,12 +359,11 @@ def generate_docs_index_html(topics):
                 <ul class="articles-list">
                     {articles_html}
                 </ul>
-            </li>
-        """
+            </li>"""
         topic_items.append(item)
     
-    # 合并所有主题列表项
-    all_items = "\n".join(topic_items)
+    # 合并所有主题列表项，去除可能产生的空行
+    all_items = "".join(topic_items)
     
     # 获取当前年份和时间
     current_year = time.strftime("%Y")
@@ -380,8 +376,24 @@ def generate_docs_index_html(topics):
         last_update=last_update
     )
     
-    # 写入文件
+    # 去除多余的换行，防止每次运行产生不同的空行
+    html_content = re.sub(r'\n{3,}', '\n\n', html_content)
+    
+    # 检查文件是否存在并且内容没有变化
     docs_index_path = os.path.join("docs", "index.html")
+    if os.path.exists(docs_index_path):
+        try:
+            with open(docs_index_path, "r", encoding="utf-8") as f:
+                existing_content = f.read()
+            
+            # 如果内容没有实质性变化，则不写入
+            if existing_content.strip() == html_content.strip():
+                print("docs/index.html 内容无变化，跳过更新")
+                return
+        except Exception as e:
+            print(f"读取现有文件时出错: {e}")
+    
+    # 写入文件
     with open(docs_index_path, "w", encoding="utf-8") as f:
         f.write(html_content)
     
@@ -401,52 +413,52 @@ def add_home_button_to_pages():
         if html_file.name == 'index.html' and html_file.parent == docs_dir:
             continue
         
-        with open(html_file, 'r', encoding='utf-8') as file:
-            content = file.read()
-        
-        # 先移除所有已存在的返回首页按钮和相关样式，避免重复
-        updated_content = content
-        
-        # 移除多余的style标签
-        updated_content = re.sub(r'(\s*</style>){2,}', '</style>', updated_content)
-        
-        # 移除所有已存在的返回首页按钮
-        updated_content = re.sub(
-            r'<a [^>]*class="home-button-fixed"[^>]*>.*?</a>',
-            '',
-            updated_content,
-            flags=re.DOTALL
-        )
-        
-        # 清理其他可能存在的返回首页按钮
-        updated_content = re.sub(
-            r'<div[^>]*>\s*<a[^>]*class="home-link"[^>]*>.*?返回首页\s*</a>\s*</div>',
-            '',
-            updated_content,
-            flags=re.DOTALL
-        )
-        
-        updated_content = re.sub(
-            r'<div class="mb-4">\s*<a href="[^"]*" class="home-link">.*?返回首页\s*</a>\s*</div>',
-            '',
-            updated_content,
-            flags=re.DOTALL
-        )
-        
-        # 移除旧的按钮样式
-        updated_content = re.sub(
-            r'/\* 返回首页按钮样式 \*/.*?}(\s*</style>)',
-            r'\1',
-            updated_content,
-            flags=re.DOTALL
-        )
-        
-        # 添加新的样式定义
-        if '<style' in updated_content and '</style>' in updated_content:
+        try:
+            with open(html_file, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # 先移除所有已存在的返回首页按钮和相关样式，避免重复
+            updated_content = content
+            
+            # 移除多余的style标签
+            updated_content = re.sub(r'(\s*</style>){2,}', '</style>', updated_content)
+            
+            # 移除所有已存在的返回首页按钮
             updated_content = re.sub(
-                r'(</style>)',
-                r'''
-        /* 返回首页按钮样式 */
+                r'<a [^>]*class="home-button-fixed"[^>]*>.*?</a>',
+                '',
+                updated_content,
+                flags=re.DOTALL
+            )
+            
+            # 清理其他可能存在的返回首页按钮
+            updated_content = re.sub(
+                r'<div[^>]*>\s*<a[^>]*class="home-link"[^>]*>.*?返回首页\s*</a>\s*</div>',
+                '',
+                updated_content,
+                flags=re.DOTALL
+            )
+            
+            updated_content = re.sub(
+                r'<div class="mb-4">\s*<a href="[^"]*" class="home-link">.*?返回首页\s*</a>\s*</div>',
+                '',
+                updated_content,
+                flags=re.DOTALL
+            )
+            
+            # 移除旧的按钮样式
+            updated_content = re.sub(
+                r'/\* 返回首页按钮样式 \*/.*?}(\s*</style>)',
+                r'\1',
+                updated_content,
+                flags=re.DOTALL
+            )
+            
+            # 添加新的样式定义
+            if '<style' in updated_content and '</style>' in updated_content:
+                updated_content = re.sub(
+                    r'(</style>)',
+                    r'''/* 返回首页按钮样式 */
         .home-button-fixed {
             position: fixed;
             top: 50%;
@@ -484,31 +496,34 @@ def add_home_button_to_pages():
                 width: 18px;
                 height: 18px;
             }
-        }
-    \1''',
-                updated_content,
-                count=1  # 只替换第一个</style>，避免重复
-            )
-        
-        # 添加新的按钮元素
-        if updated_content.find('<body') != -1:
-            # 在body标签后添加新按钮
-            updated_content = re.sub(
-                r'<body[^>]*>',
-                r'''\g<0>
-    <a href="../index.html" class="home-button-fixed" title="返回首页">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-        </svg>
-    </a>''',
-                updated_content,
-                count=1  # 只添加一次
-            )
+        }\1''',
+                    updated_content,
+                    count=1  # 只替换第一个</style>，避免重复
+                )
+            
+            # 添加新的按钮元素
+            if updated_content.find('<body') != -1:
+                # 在body标签后添加新按钮
+                updated_content = re.sub(
+                    r'<body[^>]*>',
+                    r'''\g<0><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>''',
+                    updated_content,
+                    count=1  # 只添加一次
+                )
+            
+            # 去除多余的换行，防止每次运行产生不同的空行
+            updated_content = re.sub(r'\n{3,}', '\n\n', updated_content)
+            
+            # 检查内容是否有实质性变化
+            if content.strip() == updated_content.strip():
+                continue
                 
-        # 保存更新后的内容
-        with open(html_file, 'w', encoding='utf-8') as file:
-            file.write(updated_content)
+            # 保存更新后的内容
+            with open(html_file, 'w', encoding='utf-8') as file:
+                file.write(updated_content)
+                
+        except Exception as e:
+            print(f"处理文件 {html_file} 时出错: {e}")
     
     print("所有页面的返回首页按钮已更新为仅图标样式")
 
