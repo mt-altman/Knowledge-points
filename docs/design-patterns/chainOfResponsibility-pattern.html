@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>责任链模式详解</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@chinese-fonts/yozai@2.0.1/dist/Yozai-Regular/result.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Yozai', 'Roboto', sans-serif;
+        }
+        .highlight {
+            color: #1e40af;
+            font-weight: bold;
+        }
+        .code-container {
+            position: relative;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #ff7043;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+        .mermaid {
+            background-color: white;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        details summary {
+            cursor: pointer;
+            color: #ff7043;
+            font-weight: bold;
+        }
+        .card-clickable {
+            transition: all 0.3s ease;
+        }
+        .card-clickable:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+    /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }</style>
+</head>
+<body class="bg-gray-100"><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+    <div class="container mx-auto p-4">
+        <div class="card bg-white rounded-3xl shadow-lg">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-6 rounded-t-3xl">
+                <div class="flex items-center">
+                    <i data-lucide="git-branch" class="text-white mr-3" width="40" height="40"></i>
+                    <h1 class="text-3xl font-bold text-white">责任链模式 <span class="text-xl font-normal">(Chain of Responsibility Pattern)</span></h1>
+                </div>
+            </div>
+            <div class="p-6 bg-gray-50">
+                <!-- 术语定义 -->
+                <section class="mb-8">
+                    <details open>
+                        <summary class="text-xl mb-4">核心定义</summary>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <p class="text-lg mb-4">
+                                <span class="highlight">责任链模式</span>是一种行为设计模式，它将请求沿着处理者链进行发送。收到请求后，每个处理者决定处理请求或将其传递给链中的下一个处理者。这种模式使多个对象都有机会处理请求，从而避免请求的发送者和接收者之间的耦合关系。
+                            </p>
+                            <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 mt-4">
+                                <h3 class="font-bold text-blue-800">核心特性：</h3>
+                                <ul class="list-disc pl-5 mt-2">
+                                    <li>将<span class="highlight">请求发送者</span>与<span class="highlight">接收者解耦</span></li>
+                                    <li>可以<span class="highlight">动态组织</span>和<span class="highlight">修改</span>处理请求的顺序</li>
+                                    <li>每个处理者仅关注自己能处理的请求类型</li>
+                                    <li>符合<span class="highlight">单一职责原则</span>和<span class="highlight">开闭原则</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </details>
+                </section>
+
+                <!-- 实现细节 -->
+                <section class="mb-8">
+                    <details open>
+                        <summary class="text-xl mb-4">实现细节</summary>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <p class="mb-4">
+                                责任链模式通过构建处理者对象链来工作，每个处理者包含对下一个处理者的引用。当请求到达时，第一个处理者尝试处理它；如果无法处理，则将请求传递给链中的下一个处理者，以此类推，直到请求被处理或链结束。
+                            </p>
+                            <p class="mb-4">
+                                这种模式特别适用于处理多种条件判断的场景，通过将每个条件封装到独立的处理类中，避免了复杂的条件语句嵌套，使代码更加清晰和可维护。处理者可以在运行时动态添加或移除，增强了系统的灵活性。
+                            </p>
+                            
+                            <details open class="mt-6 mb-6">
+                                <summary class="font-bold text-lg">核心组件</summary>
+                                <div class="pl-4 pt-2">
+                                    <ul class="list-disc pl-5">
+                                        <li class="mb-2"><span class="font-bold">Handler（处理者）</span>：定义处理请求的接口，通常包含设置后继者和处理请求的方法</li>
+                                        <li class="mb-2"><span class="font-bold">ConcreteHandler（具体处理者）</span>：实现Handler接口，处理自己负责的请求，如果不能处理则转发给后继者</li>
+                                        <li class="mb-2"><span class="font-bold">Client（客户端）</span>：创建处理者链并向链中的第一个处理者发送请求</li>
+                                    </ul>
+                                </div>
+                            </details>
+                            
+                            <h3 class="font-bold text-lg mb-3">工作流程图</h3>
+                            <div class="mermaid">
+graph TD
+    A[客户端] -->|发送请求| B[处理者1]
+    B -->|能处理?| C{判断}
+    C -->|是| D[处理请求]
+    C -->|否| E[处理者2]
+    E -->|能处理?| F{判断}
+    F -->|是| G[处理请求]
+    F -->|否| H[处理者3]
+    H -->|能处理?| I{判断}
+    I -->|是| J[处理请求]
+    I -->|否| K[请求未处理]
+    style B fill:#d4e6f1,stroke:#3498db
+    style E fill:#d4e6f1,stroke:#3498db
+    style H fill:#d4e6f1,stroke:#3498db
+    style D fill:#d5f5e3,stroke:#2ecc71
+    style G fill:#d5f5e3,stroke:#2ecc71
+    style J fill:#d5f5e3,stroke:#2ecc71
+    style K fill:#fadbd8,stroke:#e74c3c
+                            </div>
+                            
+                            <h3 class="font-bold text-lg mt-6 mb-3">典型代码结构</h3>
+                            <div class="mermaid">
+graph TD
+    A[Handler抽象类/接口] --> B[ConcreteHandler1]
+    A --> C[ConcreteHandler2]
+    A --> D[ConcreteHandler3]
+    E[Client] --> A
+    style A fill:#d4e6f1,stroke:#3498db
+    style B fill:#d5f5e3,stroke:#2ecc71
+    style C fill:#d5f5e3,stroke:#2ecc71
+    style D fill:#d5f5e3,stroke:#2ecc71
+                            </div>
+                        </div>
+                    </details>
+                </section>
+
+                <!-- 应用场景 -->
+                <section class="mb-8">
+                    <details open>
+                        <summary class="text-xl mb-4">应用场景</summary>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- 场景1 -->
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <h3 class="font-bold text-lg mb-2">1. 请假审批流程</h3>
+                                    <p class="mb-3">员工请假需要经过不同级别的管理者审批，根据请假天数决定由谁来审批。</p>
+                                    <div class="code-container bg-gray-800 rounded-lg p-4 text-white overflow-auto">
+                                        <button class="copy-btn">复制代码</button>
+                                        <pre><code class="language-java">
+// 请假请求类
+class LeaveRequest {
+    private String employeeName;
+    private int leaveDays;
+    
+    public LeaveRequest(String employeeName, int leaveDays) {
+        this.employeeName = employeeName;
+        this.leaveDays = leaveDays;
+    }
+    
+    public String getEmployeeName() { return employeeName; }
+    public int getLeaveDays() { return leaveDays; }
+}
+
+// 抽象处理者
+abstract class Approver {
+    protected Approver successor; // 后继者
+    protected String name;
+    
+    public Approver(String name) {
+        this.name = name;
+    }
+    
+    // 设置后继者
+    public void setSuccessor(Approver successor) {
+        this.successor = successor;
+    }
+    
+    // 处理请求的抽象方法
+    public abstract void processRequest(LeaveRequest request);
+}
+
+// 主管 - 可以批准1-3天的请假
+class Director extends Approver {
+    public Director(String name) {
+        super(name);
+    }
+    
+    @Override
+    public void processRequest(LeaveRequest request) {
+        if (request.getLeaveDays() <= 3) {
+            System.out.println(name + " 批准了 " + request.getEmployeeName() + 
+                              " 的 " + request.getLeaveDays() + " 天请假申请");
+        } else if (successor != null) {
+            // 转发给经理
+            successor.processRequest(request);
+        }
+    }
+}
+
+// 经理 - 可以批准4-7天的请假
+class Manager extends Approver {
+    public Manager(String name) {
+        super(name);
+    }
+    
+    @Override
+    public void processRequest(LeaveRequest request) {
+        if (request.getLeaveDays() <= 7) {
+            System.out.println(name + " 批准了 " + request.getEmployeeName() + 
+                              " 的 " + request.getLeaveDays() + " 天请假申请");
+        } else if (successor != null) {
+            // 转发给总监
+            successor.processRequest(request);
+        }
+    }
+}
+
+// 总监 - 可以批准8-14天的请假
+class GeneralManager extends Approver {
+    public GeneralManager(String name) {
+        super(name);
+    }
+    
+    @Override
+    public void processRequest(LeaveRequest request) {
+        if (request.getLeaveDays() <= 14) {
+            System.out.println(name + " 批准了 " + request.getEmployeeName() + 
+                              " 的 " + request.getLeaveDays() + " 天请假申请");
+        } else {
+            System.out.println("请假天数过长，拒绝申请！");
+        }
+    }
+}
+
+// 客户端代码
+public class LeaveApprovalDemo {
+    public static void main(String[] args) {
+        // 创建处理者
+        Approver director = new Director("张主管");
+        Approver manager = new Manager("王经理");
+        Approver generalManager = new GeneralManager("李总监");
+        
+        // 组建责任链
+        director.setSuccessor(manager);
+        manager.setSuccessor(generalManager);
+        
+        // 创建请假请求并发送
+        LeaveRequest request1 = new LeaveRequest("小明", 2);
+        LeaveRequest request2 = new LeaveRequest("小红", 5);
+        LeaveRequest request3 = new LeaveRequest("小李", 10);
+        LeaveRequest request4 = new LeaveRequest("小张", 20);
+        
+        // 处理请求
+        director.processRequest(request1); // 张主管处理
+        director.processRequest(request2); // 王经理处理
+        director.processRequest(request3); // 李总监处理
+        director.processRequest(request4); // 拒绝申请
+    }
+}
+                                        </code></pre>
+                                    </div>
+                                    <div class="mt-3 bg-green-50 p-3 rounded-lg">
+                                        <h4 class="font-bold">运行结果：</h4>
+                                        <pre class="bg-white p-2 rounded">
+张主管 批准了 小明 的 2 天请假申请
+王经理 批准了 小红 的 5 天请假申请
+李总监 批准了 小李 的 10 天请假申请
+请假天数过长，拒绝申请！</pre>
+                                    </div>
+                                </div>
+                                
+                                <!-- 场景2 -->
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <h3 class="font-bold text-lg mb-2">2. 日志记录器</h3>
+                                    <p class="mb-3">根据日志级别将消息输出到不同的目标（控制台、文件、数据库等）。</p>
+                                    <div class="code-container bg-gray-800 rounded-lg p-4 text-white overflow-auto">
+                                        <button class="copy-btn">复制代码</button>
+                                        <pre><code class="language-python">
+# 定义日志级别
+class LogLevel:
+    INFO = 1
+    DEBUG = 2
+    ERROR = 3
+
+# 抽象日志处理者
+class Logger:
+    def __init__(self, level):
+        self.level = level
+        self.next_logger = None
+    
+    # 设置下一个处理者
+    def set_next_logger(self, next_logger):
+        self.next_logger = next_logger
+        return next_logger  # 返回下一个处理者，便于链式调用
+    
+    # 处理日志请求
+    def log_message(self, level, message):
+        if self.level <= level:
+            self.write(message)
+        
+        # 传递给下一个处理者
+        if self.next_logger is not None:
+            self.next_logger.log_message(level, message)
+    
+    # 由子类实现的写日志方法
+    def write(self, message):
+        pass
+
+# 控制台日志处理者
+class ConsoleLogger(Logger):
+    def write(self, message):
+        print(f"控制台日志: {message}")
+
+# 文件日志处理者
+class FileLogger(Logger):
+    def write(self, message):
+        print(f"文件日志: {message}")  # 实际应用中会写入文件
+
+# 错误日志处理者
+class ErrorLogger(Logger):
+    def write(self, message):
+        print(f"错误日志: {message}")  # 实际应用中可能会发送邮件或短信通知
+
+# 客户端代码
+def get_logger_chain():
+    # 创建处理者
+    console_logger = ConsoleLogger(LogLevel.INFO)    # 处理所有级别
+    file_logger = FileLogger(LogLevel.DEBUG)         # 处理DEBUG及以上级别
+    error_logger = ErrorLogger(LogLevel.ERROR)       # 只处理ERROR级别
+    
+    # 构建责任链
+    console_logger.set_next_logger(file_logger).set_next_logger(error_logger)
+    
+    return console_logger
+
+# 使用日志链
+if __name__ == "__main__":
+    logger_chain = get_logger_chain()
+    
+    # 记录不同级别的日志
+    print("记录INFO级别日志:")
+    logger_chain.log_message(LogLevel.INFO, "这是一条信息日志")
+    
+    print("\n记录DEBUG级别日志:")
+    logger_chain.log_message(LogLevel.DEBUG, "这是一条调试日志")
+    
+    print("\n记录ERROR级别日志:")
+    logger_chain.log_message(LogLevel.ERROR, "这是一条错误日志")
+                                        </code></pre>
+                                    </div>
+                                    <div class="mt-3 bg-green-50 p-3 rounded-lg">
+                                        <h4 class="font-bold">运行结果：</h4>
+                                        <pre class="bg-white p-2 rounded">
+记录INFO级别日志:
+控制台日志: 这是一条信息日志
+
+记录DEBUG级别日志:
+控制台日志: 这是一条调试日志
+文件日志: 这是一条调试日志
+
+记录ERROR级别日志:
+控制台日志: 这是一条错误日志
+文件日志: 这是一条错误日志
+错误日志: 这是一条错误日志</pre>
+                                    </div>
+                                </div>
+                                
+                                <!-- 场景3 -->
+                                <div class="bg-blue-50 p-4 rounded-lg md:col-span-2">
+                                    <h3 class="font-bold text-lg mb-2">3. Web请求过滤器</h3>
+                                    <p class="mb-3">HTTP请求经过一系列过滤器处理，如认证、授权、日志记录、数据压缩等。</p>
+                                    <div class="code-container bg-gray-800 rounded-lg p-4 text-white overflow-auto">
+                                        <button class="copy-btn">复制代码</button>
+                                        <pre><code class="language-javascript">
+// 请求对象
+class Request {
+  constructor(url, method, headers = {}, body = null) {
+    this.url = url;
+    this.method = method;
+    this.headers = headers;
+    this.body = body;
+    this.user = null; // 认证后的用户信息
+  }
+}
+
+// 响应对象
+class Response {
+  constructor() {
+    this.status = 200;
+    this.headers = {};
+    this.body = null;
+  }
+  
+  setStatus(status) {
+    this.status = status;
+    return this;
+  }
+  
+  setBody(body) {
+    this.body = body;
+    return this;
+  }
+}
+
+// 过滤器接口
+class Filter {
+  constructor() {
+    this.next = null;
+  }
+  
+  setNext(filter) {
+    this.next = filter;
+    return filter; // 返回下一个过滤器，便于链式调用
+  }
+  
+  // 处理请求
+  process(request, response) {
+    // 子类实现具体处理逻辑
+    
+    // 如果有下一个过滤器，则传递给它
+    if (this.next) {
+      return this.next.process(request, response);
+    }
+    
+    return response; // 返回最终响应
+  }
+}
+
+// 日志过滤器
+class LoggingFilter extends Filter {
+  process(request, response) {
+    console.log(`[日志] ${new Date().toISOString()} - ${request.method} ${request.url}`);
+    
+    // 调用下一个过滤器
+    if (this.next) {
+      return this.next.process(request, response);
+    }
+    
+    return response;
+  }
+}
+
+// 认证过滤器
+class AuthenticationFilter extends Filter {
+  process(request, response) {
+    console.log('[认证] 验证用户身份');
+    
+    // 检查认证头
+    if (!request.headers.authorization) {
+      console.log('[认证] 未提供认证信息');
+      return response.setStatus(401).setBody({ error: '未授权访问' });
+    }
+    
+    // 模拟认证逻辑
+    if (request.headers.authorization === 'Bearer valid-token') {
+      request.user = { id: 123, name: '张三', role: 'user' };
+      console.log(`[认证] 用户已认证: ${request.user.name}`);
+      
+      // 继续处理
+      if (this.next) {
+        return this.next.process(request, response);
+      }
+    } else {
+      console.log('[认证] 无效的认证令牌');
+      return response.setStatus(401).setBody({ error: '无效的认证令牌' });
+    }
+    
+    return response;
+  }
+}
+
+// 授权过滤器
+class AuthorizationFilter extends Filter {
+  process(request, response) {
+    console.log('[授权] 检查访问权限');
+    
+    // 检查用户是否已认证
+    if (!request.user) {
+      return response.setStatus(401).setBody({ error: '未授权访问' });
+    }
+    
+    // 检查是否有权限访问特定资源
+    if (request.url.startsWith('/admin') && request.user.role !== 'admin') {
+      console.log('[授权] 权限不足');
+      return response.setStatus(403).setBody({ error: '权限不足' });
+    }
+    
+    console.log('[授权] 权限验证通过');
+    
+    // 继续处理
+    if (this.next) {
+      return this.next.process(request, response);
+    }
+    
+    return response;
+  }
+}
+
+// 内容处理过滤器
+class ContentProcessingFilter extends Filter {
+  process(request, response) {
+    console.log('[内容] 处理请求内容');
+    
+    // 处理请求内容
+    if (request.method === 'POST' && request.body) {
+      console.log('[内容] 处理POST数据');
+      // 这里可以进行数据验证、转换等操作
+    }
+    
+    // 设置响应内容
+    response.setBody({
+      message: '请求处理成功',
+      timestamp: new Date().toISOString(),
+      user: request.user ? request.user.name : 'Guest'
+    });
+    
+    console.log('[内容] 响应内容已生成');
+    
+    // 继续处理
+    if (this.next) {
+      return this.next.process(request, response);
+    }
+    
+    return response;
+  }
+}
+
+// 客户端代码
+function handleRequest(request) {
+  // 创建过滤器链
+  const loggingFilter = new LoggingFilter();
+  const authFilter = new AuthenticationFilter();
+  const authzFilter = new AuthorizationFilter();
+  const contentFilter = new ContentProcessingFilter();
+  
+  // 构建过滤器链
+  loggingFilter
+    .setNext(authFilter)
+    .setNext(authzFilter)
+    .setNext(contentFilter);
+  
+  // 创建响应对象
+  const response = new Response();
+  
+  // 处理请求
+  return loggingFilter.process(request, response);
+}
+
+// 测试代码
+function runDemo() {
+  console.log("=== 测试1: 未认证的请求 ===");
+  const request1 = new Request('/api/data', 'GET');
+  const response1 = handleRequest(request1);
+  console.log('响应状态:', response1.status);
+  console.log('响应内容:', response1.body);
+  
+  console.log("\n=== 测试2: 认证但权限不足 ===");
+  const request2 = new Request('/admin/dashboard', 'GET', {
+    authorization: 'Bearer valid-token'
+  });
+  const response2 = handleRequest(request2);
+  console.log('响应状态:', response2.status);
+  console.log('响应内容:', response2.body);
+  
+  console.log("\n=== 测试3: 有效请求 ===");
+  const request3 = new Request('/api/profile', 'GET', {
+    authorization: 'Bearer valid-token'
+  });
+  const response3 = handleRequest(request3);
+  console.log('响应状态:', response3.status);
+  console.log('响应内容:', response3.body);
+}
+
+// 运行演示
+runDemo();
+                                        </code></pre>
+                                    </div>
+                                    <div class="mt-3 bg-green-50 p-3 rounded-lg">
+                                        <h4 class="font-bold">运行结果：</h4>
+                                        <pre class="bg-white p-2 rounded">
+=== 测试1: 未认证的请求 ===
+[日志] 2023-07-15T10:30:45.123Z - GET /api/data
+[认证] 验证用户身份
+[认证] 未提供认证信息
+响应状态: 401
+响应内容: { error: '未授权访问' }
+
+=== 测试2: 认证但权限不足 ===
+[日志] 2023-07-15T10:30:45.125Z - GET /admin/dashboard
+[认证] 验证用户身份
+[认证] 用户已认证: 张三
+[授权] 检查访问权限
+[授权] 权限不足
+响应状态: 403
+响应内容: { error: '权限不足' }
+
+=== 测试3: 有效请求 ===
+[日志] 2023-07-15T10:30:45.127Z - GET /api/profile
+[认证] 验证用户身份
+[认证] 用户已认证: 张三
+[授权] 检查访问权限
+[授权] 权限验证通过
+[内容] 处理请求内容
+[内容] 响应内容已生成
+响应状态: 200
+响应内容: {
+  message: '请求处理成功',
+  timestamp: '2023-07-15T10:30:45.127Z',
+  user: '张三'
+}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </section>
+
+                <!-- 比较分析 -->
+                <section class="mb-8">
+                    <details open>
+                        <summary class="text-xl mb-4">比较分析</summary>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full bg-white border border-gray-200">
+                                    <thead>
+                                        <tr>
+                                            <th class="py-2 px-4 border-b bg-blue-100">比较维度</th>
+                                            <th class="py-2 px-4 border-b bg-blue-100">责任链模式</th>
+                                            <th class="py-2 px-4 border-b bg-blue-100">策略模式</th>
+                                            <th class="py-2 px-4 border-b bg-blue-100">命令模式</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="py-2 px-4 border-b font-bold">核心思想</td>
+                                            <td class="py-2 px-4 border-b">将请求沿着处理者链传递，直到被处理</td>
+                                            <td class="py-2 px-4 border-b">定义一系列算法，使它们可以互相替换</td>
+                                            <td class="py-2 px-4 border-b">将请求封装为对象，支持请求排队、记录和撤销</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 px-4 border-b font-bold">处理方式</td>
+                                            <td class="py-2 px-4 border-b">多个处理者按顺序尝试处理请求</td>
+                                            <td class="py-2 px-4 border-b">一个处理者使用一种策略处理请求</td>
+                                            <td class="py-2 px-4 border-b">发送者通过命令对象调用接收者的方法</td>
+                                        </tr>                                        
+                                        <tr>
+                                            <td class="py-2 px-4 border-b font-bold">决策方式</td>
+                                            <td class="py-2 px-4 border-b">每个处理者自行决定是否处理请求</td>
+                                            <td class="py-2 px-4 border-b">客户端选择使用哪种策略</td>
+                                            <td class="py-2 px-4 border-b">命令对象决定如何执行请求</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 px-4 border-b font-bold">扩展性</td>
+                                            <td class="py-2 px-4 border-b">良好，可轻松添加新的处理者</td>
+                                            <td class="py-2 px-4 border-b">良好，可轻松添加新的策略</td>
+                                            <td class="py-2 px-4 border-b">良好，可轻松添加新的命令</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 px-4 border-b font-bold">耦合度</td>
+                                            <td class="py-2 px-4 border-b">低，发送者与接收者完全解耦</td>
+                                            <td class="py-2 px-4 border-b">中，上下文需要了解所有策略</td>
+                                            <td class="py-2 px-4 border-b">低，调用者与接收者解耦</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 px-4 border-b font-bold">适用场景</td>
+                                            <td class="py-2 px-4 border-b">多个对象可以处理请求，但处理者和顺序在运行时确定</td>
+                                            <td class="py-2 px-4 border-b">需要在运行时选择算法的场景</td>
+                                            <td class="py-2 px-4 border-b">需要参数化对象的操作，支持撤销等操作</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="mt-6">
+                                <h3 class="font-bold text-lg mb-4">优缺点对比</h3>
+                                <div class="mermaid">
+pie title 责任链模式优缺点分布
+    "优点" : 60
+    "缺点" : 40
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                                    <div class="bg-green-50 p-4 rounded-lg">
+                                        <h4 class="font-bold text-green-800">优点</h4>
+                                        <ul class="list-disc pl-5 mt-2">
+                                            <li>减少请求发送者与接收者之间的耦合</li>
+                                            <li>遵循单一职责原则，每个处理者只关注自己能处理的请求</li>
+                                            <li>遵循开闭原则，可以在不修改现有代码的情况下添加新的处理者</li>
+                                            <li>可以动态地改变处理者之间的顺序</li>
+                                            <li>可以将复杂的判断逻辑拆分成多个小块，更易于维护</li>
+                                        </ul>
+                                    </div>
+                                    <div class="bg-red-50 p-4 rounded-lg">
+                                        <h4 class="font-bold text-red-800">缺点</h4>
+                                        <ul class="list-disc pl-5 mt-2">
+                                            <li>请求可能未被任何处理者处理，导致请求"丢失"</li>
+                                            <li>如果处理者链较长，可能导致性能问题</li>
+                                            <li>调试困难，难以跟踪请求的处理流程</li>
+                                            <li>可能会出现循环引用的问题</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6">
+                                <h3 class="font-bold text-lg mb-4">适用性评分(1-5)</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <div class="mermaid">
+graph TD
+    A[需求: 需要处理请求吗?] -->|是| B[多个对象可能处理请求?]
+    A -->|否| Z[不使用责任链模式]
+    B -->|是| C[处理顺序需要灵活变动?]
+    B -->|否| Z
+    C -->|是| D[责任链模式]
+    C -->|否| E[有必要追踪所有处理过程?]
+    E -->|是| Z
+    E -->|否| D
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <table class="min-w-full bg-white border border-gray-200">
+                                            <thead>
+                                                <tr>
+                                                    <th class="py-2 px-4 border-b bg-gray-100">应用场景</th>
+                                                    <th class="py-2 px-4 border-b bg-gray-100">适用性评分</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td class="py-2 px-4 border-b">审批流程</td>
+                                                    <td class="py-2 px-4 border-b">
+                                                        <div class="flex">
+                                                            <span class="text-yellow-500">★★★★★</span> <span class="ml-2">5/5</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="py-2 px-4 border-b">异常处理</td>
+                                                    <td class="py-2 px-4 border-b">
+                                                        <div class="flex">
+                                                            <span class="text-yellow-500">★★★★</span><span class="text-gray-300">★</span> <span class="ml-2">4/5</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="py-2 px-4 border-b">中间件/过滤器</td>
+                                                    <td class="py-2 px-4 border-b">
+                                                        <div class="flex">
+                                                            <span class="text-yellow-500">★★★★★</span> <span class="ml-2">5/5</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="py-2 px-4 border-b">日志记录</td>
+                                                    <td class="py-2 px-4 border-b">
+                                                        <div class="flex">
+                                                            <span class="text-yellow-500">★★★★</span><span class="text-gray-300">★</span> <span class="ml-2">4/5</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="py-2 px-4 border-b">简单业务逻辑</td>
+                                                    <td class="py-2 px-4 border-b">
+                                                        <div class="flex">
+                                                            <span class="text-yellow-500">★★</span><span class="text-gray-300">★★★</span> <span class="ml-2">2/5</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </section>
+
+                <!-- 总结 -->
+                <section class="mb-8">
+                    <details open>
+                        <summary class="text-xl mb-4">总结</summary>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h3 class="font-bold text-lg mb-4">核心概念思维导图</h3>
+                            <div class="mermaid">
+mindmap
+  root((责任链模式))
+    定义
+      将请求沿着处理者链传递
+      直到有对象处理它
+      发送者与接收者解耦
+    核心组件
+      Handler(处理者)
+        定义处理请求的接口
+        设置后继者
+      ConcreteHandler(具体处理者)
+        处理职责范围内的请求
+        将其他请求传递给后继者
+      Client(客户端)
+        创建处理者链
+        向链发送请求
+    应用场景
+      审批流程
+      过滤器链
+      异常处理
+      日志记录
+    优点
+      减少耦合
+      单一职责
+      灵活性高
+      易于扩展
+    缺点
+      性能开销
+      请求可能无人处理
+      调试困难
+                            </div>
+                            
+                            <div class="mt-8">
+                                <h3 class="font-bold text-lg mb-4">常见问题解答 (FAQ)</h3>
+                                <div class="space-y-4">
+                                    <details open>
+                                        <summary class="font-bold text-blue-800 cursor-pointer">1. 责任链模式与装饰器模式有何区别？</summary>
+                                        <div class="pl-4 pt-2">
+                                            <p>虽然两种模式都涉及对象链，但它们的目的不同：</p>
+                                            <ul class="list-disc pl-5 mt-2">
+                                                <li><strong>责任链模式</strong>：重点是将请求传递给能够处理它的对象，每个处理者决定是处理请求还是传递给下一个处理者。通常只有一个处理者会处理请求。</li>
+                                                <li><strong>装饰器模式</strong>：重点是给对象动态添加职责，每个装饰器都会处理请求，然后将请求传递给下一个装饰器，形成增强功能的链条。所有装饰器都会处理请求。</li>
+                                            </ul>
+                                        </div>
+                                    </details>
+                                    
+                                    <details open>
+                                        <summary class="font-bold text-blue-800 cursor-pointer">2. 如何避免请求在责任链中"丢失"？</summary>
+                                        <div class="pl-4 pt-2">
+                                            <p>有几种常见的解决方案：</p>
+                                            <ul class="list-disc pl-5 mt-2">
+                                                <li>在链的末尾添加一个默认处理者，处理所有未被处理的请求</li>
+                                                <li>在Handler基类中实现日志记录，记录哪些请求未被处理</li>
+                                                <li>实现一个请求监控机制，跟踪请求在链中的流转状态</li>
+                                                <li>为请求增加"已处理"标志，在链结束时检查该标志</li>
+                                            </ul>
+                                        </div>
+                                    </details>
+                                    
+                                    <details open>
+                                        <summary class="font-bold text-blue-800 cursor-pointer">3. 责任链的性能问题如何解决？</summary>
+                                        <div class="pl-4 pt-2">
+                                            <p>当责任链较长时，可能会导致性能问题。以下是一些优化策略：</p>
+                                            <ul class="list-disc pl-5 mt-2">
+                                                <li>根据请求的频率和处理者的处理能力来排序处理者，将最常用或最高效的处理者放在链的前面</li>
+                                                <li>实现"短路"机制，对于特定类型的请求，直接路由到能处理它的处理者</li>
+                                                <li>使用并行处理，同时让多个处理者尝试处理请求</li>
+                                                <li>对请求进行预处理或分类，减少每个请求需要遍历的处理者数量</li>
+                                            </ul>
+                                        </div>
+                                    </details>
+                                    
+                                    <details open>
+                                        <summary class="font-bold text-blue-800 cursor-pointer">4. 如何在责任链中实现请求的部分处理？</summary>
+                                        <div class="pl-4 pt-2">
+                                            <p>有时，我们希望多个处理者都能处理请求的不同部分，这可以通过以下方式实现：</p>
+                                            <ul class="list-disc pl-5 mt-2">
+                                                <li>在请求对象中添加处理状态标志，处理者根据状态决定如何处理</li>
+                                                <li>定义处理结果对象，每个处理者都可以修改该对象</li>
+                                                <li>实现类似中间件的模式，每个处理者处理请求后仍然传递给下一个处理者</li>
+                                                <li>将处理逻辑与传递逻辑分离，使处理者可以独立决定是否继续传递</li>
+                                            </ul>
+                                        </div>
+                                    </details>
+                                    
+                                    <details open>
+                                        <summary class="font-bold text-blue-800 cursor-pointer">5. 责任链模式在哪些框架中有应用？</summary>
+                                        <div class="pl-4 pt-2">
+                                            <p>责任链模式在许多流行的框架和系统中都有应用：</p>
+                                            <ul class="list-disc pl-5 mt-2">
+                                                <li>Java的Servlet过滤器链(Filter Chain)</li>
+                                                <li>Spring的拦截器链(Interceptor Chain)</li>
+                                                <li>Node.js的Express和Koa中间件系统</li>
+                                                <li>日志框架如Log4j的日志级别处理</li>
+                                                <li>ORM框架中的事件监听器链</li>
+                                                <li>GUI框架中的事件处理机制</li>
+                                            </ul>
+                                        </div>
+                                    </details>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8">
+                                <h3 class="font-bold text-lg mb-4">最佳实践建议</h3>
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <ol class="list-decimal pl-5">
+                                        <li class="mb-3">
+                                            <strong class="text-blue-800">保持处理者的单一职责</strong>
+                                            <p>每个处理者应该只关注一种类型的请求处理，这样可以使系统更加模块化，易于维护和扩展。</p>
+                                            <div class="bg-white p-2 rounded mt-1 text-sm">
+                                                <span class="text-green-600">✓ 推荐</span>: 将认证、授权、数据验证分为不同的处理者<br>
+                                                <span class="text-red-600">✗ 避免</span>: 在一个处理者中混合多种不相关的处理逻辑
+                                            </div>
+                                        </li>
+                                        <li class="mb-3">
+                                            <strong class="text-blue-800">设计合理的请求对象</strong>
+                                            <p>请求对象应包含处理者需要的所有信息，并可能包含处理状态，以便跟踪请求在链中的处理情况。</p>
+                                            <div class="bg-white p-2 rounded mt-1 text-sm">
+                                                <span class="text-green-600">✓ 推荐</span>: 创建包含完整上下文的请求对象，可追踪处理状态<br>
+                                                <span class="text-red-600">✗ 避免</span>: 使用简单数据类型或不完整的请求对象
+                                            </div>
+                                        </li>
+                                        <li class="mb-3">
+                                            <strong class="text-blue-800">提供默认处理者</strong>
+                                            <p>在链的末尾添加一个默认处理者，确保所有请求都能得到处理，避免请求"丢失"。</p>
+                                            <div class="bg-white p-2 rounded mt-1 text-sm">
+                                                <span class="text-green-600">✓ 推荐</span>: 实现一个DefaultHandler处理未处理的请求<br>
+                                                <span class="text-red-600">✗ 避免</span>: 让请求在链结束时无人处理而"消失"
+                                            </div>
+                                        </li>
+                                        <li class="mb-3">
+                                            <strong class="text-blue-800">动态配置责任链</strong>
+                                            <p>设计责任链时，考虑允许在运行时动态添加、移除或重新排序处理者，以提高系统的灵活性。</p>
+                                            <div class="bg-white p-2 rounded mt-1 text-sm">
+                                                <span class="text-green-600">✓ 推荐</span>: 使用配置文件或工厂方法动态构建责任链<br>
+                                                <span class="text-red-600">✗ 避免</span>: 硬编码处理者顺序，使链结构难以调整
+                                            </div>
+                                        </li>
+                                        <li class="mb-3">
+                                            <strong class="text-blue-800">避免循环引用</strong>
+                                            <p>确保责任链中不会出现循环引用，否则可能导致无限循环和栈溢出。</p>
+                                            <div class="bg-white p-2 rounded mt-1 text-sm">
+                                                <span class="text-green-600">✓ 推荐</span>: 实现链验证机制，检测并防止循环引用<br>
+                                                <span class="text-red-600">✗ 避免</span>: 在没有验证的情况下允许任意设置后继者
+                                            </div>
+                                        </li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </section>
+
+                <!-- 参考资料 -->
+                <section>
+                    <details open>
+                        <summary class="text-xl mb-4">参考资料</summary>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 class="font-bold text-lg mb-3">官方文档与规范</h3>
+                                    <ul class="list-disc pl-5">
+                                        <li class="mb-2">
+                                            <a href="https://refactoring.guru/design-patterns/chain-of-responsibility" class="text-blue-600 hover:underline" target="_blank">
+                                                Refactoring.Guru - 责任链模式
+                                            </a>
+                                        </li>
+                                        <li class="mb-2">
+                                            <a href="https://sourcemaking.com/design_patterns/chain_of_responsibility" class="text-blue-600 hover:underline" target="_blank">
+                                                SourceMaking - Chain of Responsibility Pattern
+                                            </a>
+                                        </li>
+                                        <li class="mb-2">
+                                            <a href="https://en.wikipedia.org/wiki/Chain-of-responsibility_pattern" class="text-blue-600 hover:underline" target="_blank">
+                                                Wikipedia - Chain-of-responsibility pattern
+                                            </a>
+                                        </li>
+                                    </ul>
+                                    
+                                    <h3 class="font-bold text-lg mt-6 mb-3">相关技术社区</h3>
+                                    <ul class="list-disc pl-5">
+                                        <li class="mb-2">
+                                            <a href="https://stackoverflow.com/questions/tagged/chain-of-responsibility" class="text-blue-600 hover:underline" target="_blank">
+                                                Stack Overflow - Chain of Responsibility 问答
+                                            </a>
+                                        </li>
+                                        <li class="mb-2">
+                                            <a href="https://github.com/topics/chain-of-responsibility" class="text-blue-600 hover:underline" target="_blank">
+                                                GitHub - Chain of Responsibility 相关项目
+                                            </a>
+                                        </li>
+                                        <li class="mb-2">
+                                            <a href="https://dev.to/search?q=chain%20of%20responsibility" class="text-blue-600 hover:underline" target="_blank">
+                                                Dev.to - Chain of Responsibility 相关文章
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <div>
+                                    <h3 class="font-bold text-lg mb-3">分级学习路径</h3>
+                                    <div class="mb-4">
+                                        <h4 class="font-bold text-blue-800">初级学习</h4>
+                                        <ul class="list-disc pl-5">
+                                            <li class="mb-2">
+                                                <a href="https://www.tutorialspoint.com/design_pattern/chain_of_responsibility_pattern.htm" class="text-blue-600 hover:underline" target="_blank">
+                                                    TutorialsPoint - Chain of Responsibility Pattern
+                                                </a>
+                                            </li>
+                                            <li class="mb-2">
+                                                <a href="https://www.baeldung.com/chain-of-responsibility-pattern" class="text-blue-600 hover:underline" target="_blank">
+                                                    Baeldung - Chain of Responsibility in Java
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h4 class="font-bold text-blue-800">中级学习</h4>
+                                        <ul class="list-disc pl-5">
+                                            <li class="mb-2">
+                                                <a href="https://www.dofactory.com/net/chain-of-responsibility-design-pattern" class="text-blue-600 hover:underline" target="_blank">
+                                                    DoFactory - Chain of Responsibility in .NET
+                                                </a>
+                                            </li>
+                                            <li class="mb-2">
+                                                <a href="https://www.patterns.dev/posts/chain-of-responsibility-pattern" class="text-blue-600 hover:underline" target="_blank">
+                                                    Patterns.dev - Chain of Responsibility in JavaScript
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div>
+                                        <h4 class="font-bold text-blue-800">高级学习</h4>
+                                        <ul class="list-disc pl-5">
+                                            <li class="mb-2">
+                                                <a href="https://martinfowler.com/articles/chain-of-responsibility.html" class="text-blue-600 hover:underline" target="_blank">
+                                                    Martin Fowler - Chain of Responsibility Pattern
+                                                </a>
+                                            </li>
+                                            <li class="mb-2">
+                                                <a href="https://springframework.guru/gang-of-four-design-patterns/chain-of-responsibility-pattern/" class="text-blue-600 hover:underline" target="_blank">
+                                                    Spring Framework Guru - Chain of Responsibility in Spring
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <h3 class="font-bold text-lg mt-6 mb-3">延伸阅读</h3>
+                                    <ul class="list-disc pl-5">
+                                        <li class="mb-2">
+                                            <a href="https://www.amazon.com/Design-Patterns-Elements-Reusable-Object-Oriented/dp/0201633612" class="text-blue-600 hover:underline" target="_blank">
+                                                《设计模式：可复用面向对象软件的基础》- GoF
+                                            </a>
+                                        </li>
+                                        <li class="mb-2">
+                                            <a href="https://www.amazon.com/Head-First-Design-Patterns-Brain-Friendly/dp/0596007124" class="text-blue-600 hover:underline" target="_blank">
+                                                《Head First 设计模式》
+                                            </a>
+                                        </li>
+                                        <li class="mb-2">
+                                            <a href="https://refactoring.guru/design-patterns/catalog" class="text-blue-600 hover:underline" target="_blank">
+                                                设计模式目录 - 了解相关模式
+                                            </a>
+                                        </li>
+                                        <li class="mb-2">
+                                            <a href="https://www.amazon.com/Clean-Code-Handbook-Software-Craftsmanship/dp/0132350882" class="text-blue-600 hover:underline" target="_blank">
+                                                《代码整洁之道》- Robert C. Martin
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: { curve: 'basis' }
+        });
+        
+        // 初始化Lucide图标
+        lucide.createIcons();
+        
+        // 复制代码按钮功能
+        document.querySelectorAll('.copy-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const codeBlock = button.nextElementSibling;
+                const code = codeBlock.textContent;
+                
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = button.textContent;
+                    button.textContent = '已复制!';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 2000);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
