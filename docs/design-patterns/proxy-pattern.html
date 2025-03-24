@@ -84,7 +84,31 @@
             
               <div class="bg-blue-50 p-4 rounded-xl">
                 <h3 class="font-bold mb-2">核心概念图</h3>
-                <img src="https://mermaid.ink/img/pako:eNptkMFqwzAMhl9F6NRB82DHTeg2KOwwGGxsbw5WYy9ENomM3EEpffdZySBjO-nv_z5JlnbGBtIk77NnSp7MtUcVaQ-NUoEwUXS4XbWbtXsIruGLjLQ76sF6ir9xDxgVPPw2c4SWY5xDdDjSaXKIGR7B0GBGBVPMZTj_L5ynK1ivS2gSo1Ew9Z7SL3yRZ_DqXZrb-cRBTR-5dGhIW5X7-eSIR1tKfSjhFYPLHR9I3_PJHS7vP9xrubvGcqk96ZTLM13WuZ-PcTYpDdqTfaZoY2aVXN7IXVzpKdmvVgVfcWJVMoVe_wBuCH2h" alt="代理模式核心概念" class="mx-auto">
+                  <div class="mermaid">
+                  classDiagram
+                      Client --> Subject
+                      Subject <|.. RealSubject
+                      Subject <|.. Proxy
+                      Proxy --> RealSubject
+                      
+                      class Subject {
+                          +request()
+                          [Interface]
+                      }
+                      
+                      class RealSubject {
+                          +request()
+                      }
+                      
+                      class Proxy {
+                          -realSubject: RealSubject
+                          +request()
+                      }
+                      
+                      class Client {
+                          +request()
+                      }
+                </div>  
               </div>
             </div>
           </div>
@@ -132,24 +156,30 @@ graph TD
             <div class="mt-5">
               <h3 class="font-bold mb-3">代理模式结构</h3>
               <div class="mermaid">
-classDiagram
-    class Subject {
-        <<interface>>
-        +request()
-    }
-    class RealSubject {
-        +request()
-    }
-    class Proxy {
-        -realSubject: RealSubject
-        +request()
-        -preRequest()
-        -postRequest()
-    }
-    Subject <|.. RealSubject
-    Subject <|.. Proxy
-    Proxy --> RealSubject
-              </div>
+                classDiagram
+                    Client --> Subject
+                    Subject <|.. RealSubject
+                    Subject <|.. Proxy
+                    Proxy --> RealSubject
+                    
+                    class Subject {
+                        +request()
+                        [Interface]
+                    }
+                    
+                    class RealSubject {
+                        +request()
+                    }
+                    
+                    class Proxy {
+                        -realSubject: RealSubject
+                        +request()
+                    }
+                    
+                    class Client {
+                        +request()
+                    }
+            </div>
             </div>
           </div>
         </div>
