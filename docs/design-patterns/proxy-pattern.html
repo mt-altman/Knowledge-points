@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>代理模式详解</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@chinese-fonts/yozai@2.0.1/dist/Yozai-Regular/result.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: 'Yozai', 'Roboto', sans-serif; background-color: #f8fafc; }
+    .highlight { color: #1e40af; font-weight: bold; }
+    .mermaid { background: white; padding: 10px; border-radius: 10px; }
+    .code-block { position: relative; }
+    .copy-btn { position: absolute; top: 5px; right: 5px; }
+    .rating-box { width: 100px; height: 20px; background: #e5e7eb; border-radius: 10px; display: inline-block; }
+    .rating-fill { height: 100%; border-radius: 10px; background: #1e40af; }
+  /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }</style>
+</head>
+
+<body class="bg-gray-100"><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+  <div class="container mx-auto p-4">
+    <div class="card bg-white rounded-3xl shadow-lg">
+      <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-6 rounded-t-3xl text-white">
+        <div class="flex items-center space-x-3">
+          <i data-lucide="shield" class="w-10 h-10"></i>
+          <h1 class="text-3xl font-bold">代理模式 (Proxy Pattern)</h1>
+        </div>
+        <p class="mt-3 text-lg">代理模式是一种结构型设计模式，提供一个替代或占位符以控制对原对象的访问。代理充当原对象的接口，客户端通过代理间接与原对象交互，使得可以在访问对象前后添加额外的逻辑。</p>
+      </div>
+    
+      <div class="p-6 bg-gray-50">
+        <!-- 术语定义 -->
+        <div class="mb-8">
+          <div class="bg-white p-5 rounded-2xl shadow-md cursor-pointer mb-3" id="definition-card">
+            <h2 class="text-xl font-bold mb-3 flex items-center">
+              <i data-lucide="book-open" class="w-6 h-6 mr-2"></i>详细定义
+            </h2>
+            <div id="definition-content">
+              <p class="mb-4">
+                <span class="highlight">代理模式</span>是一种为其他对象提供一种替代品或占位符的设计模式。代理对象控制着对原对象的访问，并允许在将请求提交给原对象前后执行一些操作。
+                代理通常被用于延迟加载、访问控制、日志记录、智能引用等场景。代理模式遵循<span class="highlight">接口隔离原则</span>，客户端无需知晓代理与真实对象的区别，因为它们实现相同的接口。
+              </p>
+            
+              <div class="bg-blue-50 p-4 rounded-xl">
+                <h3 class="font-bold mb-2">核心概念图</h3>
+                <img src="https://mermaid.ink/img/pako:eNptkMFqwzAMhl9F6NRB82DHTeg2KOwwGGxsbw5WYy9ENomM3EEpffdZySBjO-nv_z5JlnbGBtIk77NnSp7MtUcVaQ-NUoEwUXS4XbWbtXsIruGLjLQ76sF6ir9xDxgVPPw2c4SWY5xDdDjSaXKIGR7B0GBGBVPMZTj_L5ynK1ivS2gSo1Ew9Z7SL3yRZ_DqXZrb-cRBTR-5dGhIW5X7-eSIR1tKfSjhFYPLHR9I3_PJHS7vP9xrubvGcqk96ZTLM13WuZ-PcTYpDdqTfaZoY2aVXN7IXVzpKdmvVgVfcWJVMoVe_wBuCH2h" alt="代理模式核心概念" class="mx-auto">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 实现细节 -->
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold mb-4 flex items-center">
+            <i data-lucide="code" class="w-6 h-6 mr-2"></i>实现细节
+          </h2>
+        
+          <div class="bg-white p-5 rounded-2xl shadow-md mb-5">
+            <p class="mb-4">
+              代理模式的核心是<span class="highlight">创建一个新的代理类</span>，它实现与原目标对象相同的接口，并持有一个指向目标对象的引用。当客户端调用代理对象的方法时，代理对象会在转发调用前后执行额外的逻辑。
+              这种模式允许在不修改原有代码的情况下，通过组合方式扩展目标对象的功能，符合<span class="highlight">开闭原则</span>。代理对象可以完全控制何时以及如何将请求传递给目标对象，甚至可以决定是否传递。
+            </p>
+          
+            <details open>
+              <summary class="font-bold cursor-pointer p-2 bg-gray-100 rounded-lg">核心组件及功能</summary>
+              <div class="p-3">
+                <ul class="list-disc ml-5 space-y-2">
+                  <li><span class="font-semibold">Subject (主题接口)</span> - 定义了 RealSubject 和 Proxy 的共同接口，这样在任何使用 RealSubject 的地方都可以使用 Proxy</li>
+                  <li><span class="font-semibold">RealSubject (真实主题)</span> - 定义了代理所代表的实际对象，是最终要引用的对象</li>
+                  <li><span class="font-semibold">Proxy (代理)</span> - 保存一个引用使得代理可以访问实际对象，提供与 Subject 接口相同的接口，这样代理就可以用来替代实际对象</li>
+                  <li><span class="font-semibold">Client (客户端)</span> - 通过代理间接访问目标对象，无需感知代理的存在</li>
+                </ul>
+              </div>
+            </details>
+          
+            <div class="mt-5">
+              <h3 class="font-bold mb-3">代理模式工作流程</h3>
+              <div class="mermaid">
+graph TD
+    A[客户端] -->|请求| B[代理对象]
+    B -->|前置处理| C{是否继续?}
+    C -->|是| D[真实对象]
+    C -->|否| E[拒绝/返回缓存]
+    D -->|执行实际操作| F[返回结果]
+    F -->|后置处理| G[最终结果]
+    E -->|返回结果| G
+    G -->|响应| A
+              </div>
+            </div>
+          
+            <div class="mt-5">
+              <h3 class="font-bold mb-3">代理模式结构</h3>
+              <div class="mermaid">
+classDiagram
+    class Subject {
+        <<interface>>
+        +request()
+    }
+    class RealSubject {
+        +request()
+    }
+    class Proxy {
+        -realSubject: RealSubject
+        +request()
+        -preRequest()
+        -postRequest()
+    }
+    Subject <|.. RealSubject
+    Subject <|.. Proxy
+    Proxy --> RealSubject
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 应用场景 -->
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold mb-4 flex items-center">
+            <i data-lucide="lightbulb" class="w-6 h-6 mr-2"></i>应用场景
+          </h2>
+        
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- 场景1 -->
+            <div class="bg-white p-5 rounded-2xl shadow-md">
+              <h3 class="text-xl font-bold mb-3">1. 虚拟代理 - 延迟加载</h3>
+              <p class="mb-3">当加载大型资源（如图片或视频）时，可以使用代理延迟加载，直到真正需要显示这些资源时才加载。</p>
+            
+              <div class="code-block">
+                <pre class="bg-gray-800 text-white p-4 rounded-lg overflow-x-auto"><code class="language-javascript text-sm">
+<span class="text-gray-400">// 定义图片加载接口</span>
+class ImageLoader {
+  loadImage(url) {
+    throw new Error('抽象方法未实现');
+  }
+}
+
+<span class="text-gray-400">// 真实图片加载器</span>
+class RealImageLoader extends ImageLoader {
+  constructor() {
+    super();
+  }
+
+  loadImage(url) {
+    console.log(`实际加载图片: ${url}`);
+    <span class="text-gray-400">// 模拟图片加载</span>
+    return `图片(${url})已加载完成`;
+  }
+}
+
+<span class="text-gray-400">// 图片加载代理</span>
+class ImageLoaderProxy extends ImageLoader {
+  constructor() {
+    super();
+    this.realLoader = new RealImageLoader();
+    this.cache = {};
+  }
+
+  loadImage(url) {
+    <span class="text-gray-400">// 检查是否已缓存</span>
+    if (this.cache[url]) {
+      console.log(`从缓存返回图片: ${url}`);
+      return this.cache[url];
+    }
+  
+    <span class="text-gray-400">// 首次加载时使用真实加载器</span>
+    console.log(`首次加载，使用代理`);
+    const result = this.realLoader.loadImage(url);
+    this.cache[url] = result;
+    return result;
+  }
+}
+
+<span class="text-gray-400">// 客户端使用</span>
+const imageProxy = new ImageLoaderProxy();
+console.log(imageProxy.loadImage('example.jpg'));
+console.log(imageProxy.loadImage('example.jpg')); <span class="text-gray-400">// 从缓存加载</span>
+</code></pre>
+                <button class="copy-btn bg-orange-500 text-white px-2 py-1 rounded hover:bg-orange-600 text-sm">复制代码</button>
+              </div>
+            
+              <div class="mt-3 bg-blue-50 p-3 rounded-lg">
+                <h4 class="font-bold">运行结果:</h4>
+                <pre class="bg-white p-2 rounded">
+首次加载，使用代理
+实际加载图片: example.jpg
+图片(example.jpg)已加载完成
+从缓存返回图片: example.jpg
+图片(example.jpg)已加载完成
+                </pre>
+              </div>
+            </div>
+          
+            <!-- 场景2 -->
+            <div class="bg-white p-5 rounded-2xl shadow-md">
+              <h3 class="text-xl font-bold mb-3">2. 保护代理 - 访问控制</h3>
+              <p class="mb-3">保护代理控制对原始对象的访问，通常用于实现权限验证和访问控制。</p>
+            
+              <div class="code-block">
+                <pre class="bg-gray-800 text-white p-4 rounded-lg overflow-x-auto"><code class="language-java text-sm">
+<span class="text-gray-400">// 文件接口</span>
+interface FileAccess {
+    String readFile(String fileName);
+    void writeFile(String fileName, String content);
+}
+
+<span class="text-gray-400">// 真实文件系统</span>
+class RealFileSystem implements FileAccess {
+    @Override
+    public String readFile(String fileName) {
+        return "文件内容: " + fileName;
+    }
+
+    @Override
+    public void writeFile(String fileName, String content) {
+        System.out.println("写入文件 " + fileName + ": " + content);
+    }
+}
+
+<span class="text-gray-400">// 文件访问代理</span>
+class FileAccessProxy implements FileAccess {
+    private RealFileSystem realFileSystem;
+    private String userRole;
+
+    public FileAccessProxy(String userRole) {
+        this.realFileSystem = new RealFileSystem();
+        this.userRole = userRole;
+    }
+
+    @Override
+    public String readFile(String fileName) {
+        <span class="text-gray-400">// 所有用户都可以读取文件</span>
+        System.out.println("代理: 允许用户 [" + userRole + "] 读取文件");
+        return realFileSystem.readFile(fileName);
+    }
+
+    @Override
+    public void writeFile(String fileName, String content) {
+        <span class="text-gray-400">// 只有管理员可以写入文件</span>
+        if ("admin".equals(userRole)) {
+            System.out.println("代理: 允许管理员写入文件");
+            realFileSystem.writeFile(fileName, content);
+        } else {
+            System.out.println("代理: 拒绝用户 [" + userRole + "] 写入文件，权限不足");
+        }
+    }
+}
+
+<span class="text-gray-400">// 使用示例</span>
+public class ProxyDemo {
+    public static void main(String[] args) {
+      <span class="text-gray-400">// 普通用户</span>
+FileAccess userProxy = new FileAccessProxy("user");
+System.out.println(userProxy.readFile("data.txt"));
+userProxy.writeFile("data.txt", "新内容"); <span class="text-gray-400">// 将被拒绝</span>
+
+<span class="text-gray-400">// 管理员</span>
+FileAccess adminProxy = new FileAccessProxy("admin");
+System.out.println(adminProxy.readFile("data.txt"));
+adminProxy.writeFile("data.txt", "管理员写入的内容"); <span class="text-gray-400">// 允许</span>
+    }
+}
+</code></pre>
+                <button class="copy-btn bg-orange-500 text-white px-2 py-1 rounded hover:bg-orange-600 text-sm">复制代码</button>
+              </div>
+              
+              <div class="mt-3 bg-blue-50 p-3 rounded-lg">
+                <h4 class="font-bold">运行结果:</h4>
+                <pre class="bg-white p-2 rounded">
+代理: 允许用户 [user] 读取文件
+文件内容: data.txt
+代理: 拒绝用户 [user] 写入文件，权限不足
+代理: 允许用户 [admin] 读取文件
+文件内容: data.txt
+代理: 允许管理员写入文件
+写入文件 data.txt: 管理员写入的内容
+                </pre>
+              </div>
+            </div>
+            
+            <!-- 场景3 -->
+            <div class="bg-white p-5 rounded-2xl shadow-md">
+              <h3 class="text-xl font-bold mb-3">3. 远程代理 - 远程服务调用</h3>
+              <p class="mb-3">远程代理为位于不同地址空间的对象提供本地代表，隐藏了远程调用的复杂性。</p>
+              
+              <div class="code-block">
+                <pre class="bg-gray-800 text-white p-4 rounded-lg overflow-x-auto"><code class="language-python text-sm">
+<span class="text-gray-400"># 定义服务接口</span>
+class WeatherService:
+    def get_weather(self, city):
+        pass
+
+<span class="text-gray-400"># 模拟远程服务</span>
+class RemoteWeatherService(WeatherService):
+    def get_weather(self, city):
+        <span class="text-gray-400"># 实际中这里会调用远程API</span>
+        print(f"远程服务: 获取{city}的天气数据")
+        return f"{city}天气: 晴朗, 25°C"
+
+<span class="text-gray-400"># 远程代理</span>
+class WeatherServiceProxy(WeatherService):
+    def __init__(self):
+        self.remote_service = RemoteWeatherService()
+        self.cache = 
+        self.cache_time = 
+        self.cache_duration = 3600  <span class="text-gray-400"># 缓存1小时</span>
+    
+    def get_weather(self, city):
+        import time
+        current_time = time.time()
+        
+        <span class="text-gray-400"># 检查缓存是否有效</span>
+        if city in self.cache and current_time - self.cache_time.get(city, 0) < self.cache_duration:
+            print(f"代理: 从缓存返回{city}的天气数据")
+            return self.cache[city]
+        
+        <span class="text-gray-400"># 缓存无效，调用远程服务</span>
+        print(f"代理: 缓存过期，调用远程服务")
+        result = self.remote_service.get_weather(city)
+        
+        <span class="text-gray-400"># 更新缓存</span>
+        self.cache[city] = result
+        self.cache_time[city] = current_time
+        
+        return result
+
+<span class="text-gray-400"># 客户端使用</span>
+def client_code():
+    weather_proxy = WeatherServiceProxy()
+    
+    <span class="text-gray-400"># 第一次调用，会请求远程服务</span>
+    print(weather_proxy.get_weather("北京"))
+    
+    <span class="text-gray-400"># 短时间内再次调用，将使用缓存</span>
+    print(weather_proxy.get_weather("北京"))
+    
+    <span class="text-gray-400"># 请求不同城市的数据</span>
+    print(weather_proxy.get_weather("上海"))
+
+<span class="text-gray-400"># 运行客户端代码</span>
+client_code()
+</code></pre>
+                <button class="copy-btn bg-orange-500 text-white px-2 py-1 rounded hover:bg-orange-600 text-sm">复制代码</button>
+              </div>
+              
+              <div class="mt-3 bg-blue-50 p-3 rounded-lg">
+                <h4 class="font-bold">运行结果:</h4>
+                <pre class="bg-white p-2 rounded">
+代理: 缓存过期，调用远程服务
+远程服务: 获取北京的天气数据
+北京天气: 晴朗, 25°C
+代理: 从缓存返回北京的天气数据
+北京天气: 晴朗, 25°C
+代理: 缓存过期，调用远程服务
+远程服务: 获取上海的天气数据
+上海天气: 晴朗, 25°C
+                </pre>
+              </div>
+            </div>
+            
+            <!-- 场景4 -->
+            <div class="bg-white p-5 rounded-2xl shadow-md">
+              <h3 class="text-xl font-bold mb-3">4. 日志代理 - 方法调用记录</h3>
+              <p class="mb-3">日志代理在方法调用前后添加日志记录，用于调试和性能监控。</p>
+              
+              <div class="code-block">
+                <pre class="bg-gray-800 text-white p-4 rounded-lg overflow-x-auto"><code class="language-csharp text-sm">
+using System;
+using System.Diagnostics;
+
+<span class="text-gray-400">// 定义服务接口</span>
+public interface IUserService
+{
+    void CreateUser(string username);
+    string GetUserDetails(int userId);
+}
+
+<span class="text-gray-400">// 实际服务实现</span>
+public class UserService : IUserService
+{
+    public void CreateUser(string username)
+    {
+        <span class="text-gray-400">// 模拟创建用户的操作</span>
+        Console.WriteLine($"创建用户: {username}");
+        <span class="text-gray-400">// 模拟耗时操作</span>
+        System.Threading.Thread.Sleep(100);
+    }
+
+    public string GetUserDetails(int userId)
+    {
+        <span class="text-gray-400">// 模拟获取用户详情</span>
+        Console.WriteLine($"获取用户ID: {userId} 的详情");
+        <span class="text-gray-400">// 模拟耗时操作</span>
+        System.Threading.Thread.Sleep(50);
+        return $"用户 {userId}: 张三, 年龄: 30";
+    }
+}
+
+<span class="text-gray-400">// 日志代理</span>
+public class LoggingUserServiceProxy : IUserService
+{
+    private readonly IUserService _service;
+    
+    public LoggingUserServiceProxy(IUserService service)
+    {
+        _service = service;
+    }
+    
+    public void CreateUser(string username)
+    {
+        Console.WriteLine($"[日志] 开始调用 CreateUser, 参数: {username}");
+        
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            _service.CreateUser(username);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[日志] 异常: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            Console.WriteLine($"[日志] 结束调用 CreateUser, 耗时: {stopwatch.ElapsedMilliseconds}ms");
+        }
+    }
+    
+    public string GetUserDetails(int userId)
+    {
+        Console.WriteLine($"[日志] 开始调用 GetUserDetails, 参数: {userId}");
+        
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            string result = _service.GetUserDetails(userId);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[日志] 异常: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            Console.WriteLine($"[日志] 结束调用 GetUserDetails, 耗时: {stopwatch.ElapsedMilliseconds}ms");
+        }
+    }
+}
+
+<span class="text-gray-400">// 客户端代码</span>
+public class Program
+{
+    public static void Main()
+    {
+        IUserService service = new LoggingUserServiceProxy(new UserService());
+        
+        service.CreateUser("alice");
+        string details = service.GetUserDetails(123);
+        Console.WriteLine($"获取到的用户详情: {details}");
+    }
+}
+</code></pre>
+                <button class="copy-btn bg-orange-500 text-white px-2 py-1 rounded hover:bg-orange-600 text-sm">复制代码</button>
+              </div>
+              
+              <div class="mt-3 bg-blue-50 p-3 rounded-lg">
+                <h4 class="font-bold">运行结果:</h4>
+                <pre class="bg-white p-2 rounded">
+[日志] 开始调用 CreateUser, 参数: alice
+创建用户: alice
+[日志] 结束调用 CreateUser, 耗时: 103ms
+[日志] 开始调用 GetUserDetails, 参数: 123
+获取用户ID: 123 的详情
+[日志] 结束调用 GetUserDetails, 耗时: 52ms
+获取到的用户详情: 用户 123: 张三, 年龄: 30
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 比较分析 -->
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold mb-4 flex items-center">
+            <i data-lucide="bar-chart-2" class="w-6 h-6 mr-2"></i>比较分析
+          </h2>
+          
+          <div class="bg-white p-5 rounded-2xl shadow-md overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">特性</th>
+                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">代理模式</th>
+                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">装饰器模式</th>
+                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">适配器模式</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr>
+                  <td class="px-4 py-3 whitespace-nowrap font-medium">主要目的</td>
+                  <td class="px-4 py-3">控制对对象的访问</td>
+                  <td class="px-4 py-3">动态添加功能</td>
+                  <td class="px-4 py-3">使不兼容接口能够协同工作</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 whitespace-nowrap font-medium">关系</td>
+                  <td class="px-4 py-3">代理与真实对象实现相同接口</td>
+                  <td class="px-4 py-3">装饰器与被装饰对象实现相同接口</td>
+                  <td class="px-4 py-3">适配器实现目标接口，包含被适配对象</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 whitespace-nowrap font-medium">对象创建</td>
+                  <td class="px-4 py-3">代理通常负责创建真实对象</td>
+                  <td class="px-4 py-3">装饰器通常接收已创建的对象</td>
+                  <td class="px-4 py-3">适配器接收已创建的对象</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 whitespace-nowrap font-medium">透明度</td>
+                  <td class="px-4 py-3">对客户端透明</td>
+                  <td class="px-4 py-3">对客户端透明</td>
+                  <td class="px-4 py-3">对客户端透明</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 whitespace-nowrap font-medium">典型应用</td>
+                  <td class="px-4 py-3">访问控制、延迟加载、缓存</td>
+                  <td class="px-4 py-3">添加功能、责任链</td>
+                  <td class="px-4 py-3">系统集成、兼容性处理</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 whitespace-nowrap font-medium">复杂度</td>
+                  <td class="px-4 py-3">中等</td>
+                  <td class="px-4 py-3">中等</td>
+                  <td class="px-4 py-3">低</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 whitespace-nowrap font-medium">可组合性</td>
+                  <td class="px-4 py-3">低（通常一个代理对应一个实例）</td>
+                  <td class="px-4 py-3">高（可以嵌套多个装饰器）</td>
+                  <td class="px-4 py-3">低（通常一个适配器对应一个实例）</td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <div class="mt-6">
+              <h3 class="font-bold mb-3">各模式适用性评分 (1-5)</h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg">
+                  <h4 class="font-semibold">代理模式</h4>
+                  <div class="mt-2">
+                    <div class="flex items-center mb-1">
+                      <span class="w-32">访问控制:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 100%"></div></div>
+                      <span class="ml-2">5/5</span>
+                    </div>
+                    <div class="flex items-center mb-1">
+                      <span class="w-32">延迟加载:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 100%"></div></div>
+                      <span class="ml-2">5/5</span>
+                    </div>
+                    <div class="flex items-center mb-1">
+                      <span class="w-32">功能扩展:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 60%"></div></div>
+                      <span class="ml-2">3/5</span>
+                    </div>
+                    <div class="flex items-center">
+                      <span class="w-32">接口转换:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 20%"></div></div>
+                      <span class="ml-2">1/5</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded-lg">
+                  <h4 class="font-semibold">装饰器模式</h4>
+                  <div class="mt-2">
+                    <div class="flex items-center mb-1">
+                      <span class="w-32">访问控制:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 60%"></div></div>
+                      <span class="ml-2">3/5</span>
+                    </div>
+                    <div class="flex items-center mb-1">
+                      <span class="w-32">延迟加载:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 20%"></div></div>
+                      <span class="ml-2">1/5</span>
+                    </div>
+                    <div class="flex items-center mb-1">
+                      <span class="w-32">功能扩展:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 100%"></div></div>
+                      <span class="ml-2">5/5</span>
+                    </div>
+                    <div class="flex items-center">
+                      <span class="w-32">接口转换:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 20%"></div></div>
+                      <span class="ml-2">1/5</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded-lg">
+                  <h4 class="font-semibold">适配器模式</h4>
+                  <div class="mt-2">
+                    <div class="flex items-center mb-1">
+                      <span class="w-32">访问控制:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 20%"></div></div>
+                      <span class="ml-2">1/5</span>
+                    </div>
+                    <div class="flex items-center mb-1">
+                      <span class="w-32">延迟加载:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 20%"></div></div>
+                      <span class="ml-2">1/5</span>
+                    </div>
+                    <div class="flex items-center mb-1">
+                      <span class="w-32">功能扩展:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 40%"></div></div>
+                      <span class="ml-2">2/5</span>
+                    </div>
+                    <div class="flex items-center">
+                      <span class="w-32">接口转换:</span>
+                      <div class="rating-box"><div class="rating-fill" style="width: 100%"></div></div>
+                      <span class="ml-2">5/5</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-6">
+              <h3 class="font-bold mb-3">设计模式选择决策树</h3>
+              <div class="mermaid">
+graph TD
+    A[需要修改对象行为?] -->|是| B[是否需要控制访问?]
+    A -->|否| Z[考虑其他模式]
+    B -->|是| C[代理模式]
+    B -->|否| D[是否需要动态添加功能?]
+    D -->|是| E[装饰器模式]
+    D -->|否| F[是否需要接口转换?]
+    F -->|是| G[适配器模式]
+    F -->|否| H[考虑其他模式]
+    
+    C -->|访问控制| C1[保护代理]
+    C -->|延迟初始化| C2[虚拟代理]
+    C -->|远程调用| C3[远程代理]
+    C -->|缓存结果| C4[缓存代理]
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 总结 -->
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold mb-4 flex items-center">
+            <i data-lucide="check-circle" class="w-6 h-6 mr-2"></i>总结
+          </h2>
+          
+          <div class="bg-white p-5 rounded-2xl shadow-md">
+            <h3 class="font-bold mb-3">代理模式思维导图</h3>
+            <div class="mermaid">
+mindmap
+  root((代理模式))
+    类型
+      虚拟代理
+        延迟加载
+        按需创建
+      保护代理
+        访问控制
+        权限验证
+      远程代理
+        远程服务调用
+        分布式系统
+      缓存代理
+        结果缓存
+        性能优化
+      智能引用
+        引用计数
+        资源管理
+    核心组件
+      Subject接口
+      RealSubject
+      Proxy
+      Client
+    优点
+      控制访问
+      延迟加载
+      透明性
+      关注点分离
+    缺点
+      增加复杂度
+      性能开销
+      间接性
+    应用场景
+      图片加载
+      权限控制
+      远程服务
+      日志记录
+            </div>
+            
+            <div class="mt-6">
+              <h3 class="font-bold mb-3">常见问题解答</h3>
+              
+              <details open class="mb-3 border border-gray-200 rounded-lg">
+                <summary class="p-3 bg-gray-50 cursor-pointer font-semibold">代理模式和装饰器模式有什么区别？</summary>
+                <div class="p-3">
+                  <p>虽然代理模式和装饰器模式在结构上相似（都实现相同接口并包含对原对象的引用），但它们的<span class="highlight">意图不同</span>：</p>
+                  <ul class="list-disc ml-5 mt-2">
+                    <li><strong>代理模式</strong>主要关注控制对对象的访问，代理通常自行管理其服务对象的生命周期</li>
+                    <li><strong>装饰器模式</strong>主要关注动态添加功能，不控制对象访问，而是扩展对象功能</li>
+                    <li>代理通常在对象生命周期开始时就创建，而装饰器可以在运行时动态添加</li>
+                    <li>装饰器可以嵌套使用，而代理通常不会嵌套</li>
+                  </ul>
+                </div>
+              </details>
+              
+              <details open class="mb-3 border border-gray-200 rounded-lg">
+                <summary class="p-3 bg-gray-50 cursor-pointer font-semibold">代理模式会影响性能吗？</summary>
+                <div class="p-3">
+                  <p>代理模式确实会引入一定的间接性，可能导致轻微的性能开销。但在大多数情况下，这种开销是可以接受的，尤其是当代理提供的功能（如缓存、延迟加载）能够带来性能优势时。</p>
+                  <p class="mt-2">需要注意的是：</p>
+                  <ul class="list-disc ml-5 mt-2">
+                    <li>虚拟代理和缓存代理实际上通常会<span class="highlight">提高</span>系统性能</li>
+                    <li>保护代理和日志代理可能会增加一些开销，但通常微不足道</li>
+                    <li>远程代理中的网络延迟通常远大于代理本身引入的开销</li>
+                  </ul>
+                </div>
+              </details>
+              
+              <details open class="mb-3 border border-gray-200 rounded-lg">
+                <summary class="p-3 bg-gray-50 cursor-pointer font-semibold">什么时候应该使用代理模式？</summary>
+                <div class="p-3">
+                  <p>当你需要在不修改原始对象的情况下控制对它的访问时，应该考虑使用代理模式。具体场景包括：</p>
+                  <ul class="list-disc ml-5 mt-2">
+                    <li>需要<span class="highlight">延迟初始化</span>昂贵对象（虚拟代理）</li>
+                    <li>需要基于权限或条件<span class="highlight">控制访问</span>（保护代理）</li>
+                    <li>需要在本地代表<span class="highlight">远程对象</span>（远程代理）</li>
+                    <li>需要<span class="highlight">缓存</span>操作结果以提高性能（缓存代理）</li>
+                    <li>需要在访问对象前后<span class="highlight">添加行为</span>，如日志记录（日志代理）</li>
+                  </ul>
+                </div>
+              </details>
+              
+              <details open class="mb-3 border border-gray-200 rounded-lg">
+                <summary class="p-3 bg-gray-50 cursor-pointer font-semibold">代理模式如何与其他设计模式结合使用？</summary>
+                <div class="p-3">
+                  <p>代理模式可以与多种设计模式结合使用，形成更强大的解决方案：</p>
+                  <ul class="list-disc ml-5 mt-2">
+                    <li><strong>代理 + 工厂模式</strong>：工厂可以根据条件返回真实对象或其代理</li>
+                    <li><strong>代理 + 单例模式</strong>：代理可以确保只有一个真实对象实例被创建</li>
+                    <li><strong>代理 + 观察者模式</strong>：代理可以在对象状态变化时通知观察者</li>
+                    <li><strong>代理 + 装饰器模式</strong>：先用代理控制访问，再用装饰器添加功能</li>
+                    <li><strong>代理 + 适配器模式</strong>：代理可以包含适配器，在控制访问的同时转换接口</li>
+                  </ul>
+                </div>
+              </details>
+              
+              <details open class="mb-3 border border-gray-200 rounded-lg">
+                <summary class="p-3 bg-gray-50 cursor-pointer font-semibold">如何避免代理模式导致的代码复杂性？</summary>
+                <div class="p-3">
+                  <p>代理模式可能增加系统的复杂性，特别是当有多层代理时。以下是一些减轻复杂性的策略：</p>
+                  <ul class="list-disc ml-5 mt-2">
+                    <li>使用<span class="highlight">动态代理</span>（如Java的JDK动态代理或CGLIB）自动生成代理类</li>
+                    <li>使用<span class="highlight">面向切面编程</span>（AOP）实现横切关注点，如日志和安全</li>
+                    <li>保持代理类<span class="highlight">职责单一</span>，避免在一个代理中混合多种功能</li>
+                    <li>为复杂代理提供<span class="highlight">清晰文档</span>，说明其目的和行为</li>
+                    <li>考虑使用<span class="highlight">装饰器模式</span>替代多层代理</li>
+                  </ul>
+                </div>
+              </details>
+            </div>
+            
+            <div class="mt-6">
+              <h3 class="font-bold mb-3">最佳实践</h3>
+              
+              <div class="bg-blue-50 p-4 rounded-xl mb-3">
+                <h4 class="font-semibold">
+                    <h4 class="font-semibold">1. 保持接口一致性</h4>
+                <p class="mt-1">代理和真实对象应严格实现相同的接口，这样客户端才能透明地使用代理。代理不应该向客户端暴露不属于原始接口的特殊功能。</p>
+                <pre class="bg-white p-2 rounded mt-2 text-sm">
+// 良好实践
+interface Service {
+    void operation();
+}
+
+class RealService implements Service {
+    public void operation() { /* ... */ }
+}
+
+class ServiceProxy implements Service {
+    private RealService service;
+    
+    public void operation() {
+        // 前置处理
+        service.operation();
+        // 后置处理
+    }
+}
+                </pre>
+              </div>
+              
+              <div class="bg-blue-50 p-4 rounded-xl mb-3">
+                <h4 class="font-semibold">2. 懒初始化真实对象</h4>
+                <p class="mt-1">除非明确需要预先初始化，否则应该在第一次请求时才创建真实对象，这可以节省资源并提高启动性能。</p>
+                <pre class="bg-white p-2 rounded mt-2 text-sm">
+class LazyProxy implements Service {
+    private RealService service = null;
+    
+    public void operation() {
+        if (service == null) {
+            service = new RealService(); // 懒初始化
+        }
+        service.operation();
+    }
+}
+                </pre>
+              </div>
+              
+              <div class="bg-blue-50 p-4 rounded-xl mb-3">
+                <h4 class="font-semibold">3. 利用动态代理减少样板代码</h4>
+                <p class="mt-1">在支持反射的语言中，使用动态代理机制可以减少手动创建代理类的工作量，特别是当有多个类需要相同类型的代理功能时。</p>
+                <pre class="bg-white p-2 rounded mt-2 text-sm">
+// Java示例
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+// 创建动态代理
+Service service = (Service) Proxy.newProxyInstance(
+    Service.class.getClassLoader(),
+    new Class<?>[] { Service.class },
+    new InvocationHandler() {
+        private final Service realService = new RealService();
+        
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) 
+            throws Throwable {
+            System.out.println("Before method: " + method.getName());
+            Object result = method.invoke(realService, args);
+            System.out.println("After method: " + method.getName());
+            return result;
+        }
+    }
+);
+                </pre>
+              </div>
+              
+              <div class="bg-blue-50 p-4 rounded-xl mb-3">
+                <h4 class="font-semibold">4. 合理处理异常传递</h4>
+                <p class="mt-1">代理应该正确处理和传递来自真实对象的异常，同时可以添加自己的异常处理逻辑，但不应隐藏原始异常信息。</p>
+                <pre class="bg-white p-2 rounded mt-2 text-sm">
+public void operation() {
+    try {
+        // 前置处理
+        realService.operation();
+        // 后置处理
+    } catch (Exception e) {
+        // 记录异常信息
+        logger.error("操作执行失败", e);
+        // 重新抛出异常，保留原始异常信息
+        throw new ServiceException("服务调用失败", e);
+    }
+}
+                </pre>
+              </div>
+              
+              <div class="bg-blue-50 p-4 rounded-xl">
+                <h4 class="font-semibold">5. 避免过度使用代理</h4>
+                <p class="mt-1">代理应该有明确的目的，避免创建不必要的代理层。多层代理会增加复杂性和性能开销，考虑使用装饰器模式或责任链模式替代多层代理。</p>
+                <pre class="bg-white p-2 rounded mt-2 text-sm">
+// 避免这样的多层代理
+Client -> LoggingProxy -> SecurityProxy -> CachingProxy -> RealService
+
+// 考虑使用装饰器模式
+Service service = new LoggingDecorator(
+                      new SecurityDecorator(
+                          new CachingDecorator(
+                              new RealService())));
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 参考资料 -->
+        <div>
+          <h2 class="text-2xl font-bold mb-4 flex items-center">
+            <i data-lucide="book" class="w-6 h-6 mr-2"></i>参考资料
+          </h2>
+          
+          <div class="bg-white p-5 rounded-2xl shadow-md">
+            <div class="mb-5">
+              <h3 class="font-bold mb-3">官方文档与规范</h3>
+              <ul class="list-disc ml-5 space-y-2">
+                <li><a href="https://refactoring.guru/design-patterns/proxy" class="text-blue-600 hover:underline" target="_blank">Refactoring Guru - Proxy Pattern</a></li>
+                <li><a href="https://sourcemaking.com/design_patterns/proxy" class="text-blue-600 hover:underline" target="_blank">SourceMaking - Proxy Design Pattern</a></li>
+                <li><a href="https://en.wikipedia.org/wiki/Proxy_pattern" class="text-blue-600 hover:underline" target="_blank">Wikipedia - Proxy Pattern</a></li>
+              </ul>
+            </div>
+            
+            <div class="mb-5">
+              <h3 class="font-bold mb-3">学习路径</h3>
+              
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg">
+                  <h4 class="font-semibold">初级学习资源</h4>
+                  <ul class="list-disc ml-5 mt-2 space-y-1">
+                    <li><a href="https://www.geeksforgeeks.org/proxy-design-pattern/" class="text-blue-600 hover:underline" target="_blank">GeeksforGeeks - Proxy Pattern</a></li>
+                    <li><a href="https://www.tutorialspoint.com/design_pattern/proxy_pattern.htm" class="text-blue-600 hover:underline" target="_blank">TutorialsPoint - Proxy Pattern</a></li>
+                    <li><a href="https://www.baeldung.com/java-proxy-pattern" class="text-blue-600 hover:underline" target="_blank">Baeldung - Proxy Pattern in Java</a></li>
+                  </ul>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded-lg">
+                  <h4 class="font-semibold">中级学习资源</h4>
+                  <ul class="list-disc ml-5 mt-2 space-y-1">
+                    <li><a href="https://leanpub.com/design-patterns-kotlin" class="text-blue-600 hover:underline" target="_blank">Design Patterns in Kotlin</a></li>
+                    <li><a href="https://docs.microsoft.com/en-us/dotnet/standard/microservices-architecture/microservice-ddd-cqrs-patterns/implement-value-objects" class="text-blue-600 hover:underline" target="_blank">Microsoft - DDD Patterns</a></li>
+                    <li><a href="https://www.youtube.com/watch?v=NwaabHqPHeM" class="text-blue-600 hover:underline" target="_blank">Christopher Okhravi - Proxy Pattern (视频)</a></li>
+                  </ul>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded-lg">
+                  <h4 class="font-semibold">高级学习资源</h4>
+                  <ul class="list-disc ml-5 mt-2 space-y-1">
+                    <li><a href="https://www.amazon.com/Head-First-Design-Patterns-Brain-Friendly/dp/0596007124" class="text-blue-600 hover:underline" target="_blank">Head First Design Patterns</a></li>
+                    <li><a href="https://www.amazon.com/Design-Patterns-Elements-Reusable-Object-Oriented/dp/0201633612" class="text-blue-600 hover:underline" target="_blank">GoF Design Patterns</a></li>
+                    <li><a href="https://github.com/iluwatar/java-design-patterns" class="text-blue-600 hover:underline" target="_blank">Java Design Patterns (GitHub)</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mb-5">
+              <h3 class="font-bold mb-3">技术社区及论坛</h3>
+              <ul class="list-disc ml-5 space-y-2">
+                <li><a href="https://stackoverflow.com/questions/tagged/proxy-pattern" class="text-blue-600 hover:underline" target="_blank">Stack Overflow - Proxy Pattern 问题</a></li>
+                <li><a href="https://github.com/topics/proxy-pattern" class="text-blue-600 hover:underline" target="_blank">GitHub - Proxy Pattern 相关项目</a></li>
+                <li><a href="https://dev.to/t/designpatterns" class="text-blue-600 hover:underline" target="_blank">Dev.to - 设计模式讨论</a></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 class="font-bold mb-3">延伸阅读</h3>
+              <ul class="list-disc ml-5 space-y-2">
+                <li><a href="https://github.com/kamranahmedse/design-patterns-for-humans" class="text-blue-600 hover:underline" target="_blank">Design Patterns for Humans</a> - 通俗易懂的设计模式解释</li>
+                <li><a href="https://martinfowler.com/articles/injection.html" class="text-blue-600 hover:underline" target="_blank">Martin Fowler - Dependency Injection</a> - 与代理模式相关的依赖注入</li>
+                <li><a href="https://en.wikipedia.org/wiki/Aspect-oriented_programming" class="text-blue-600 hover:underline" target="_blank">面向切面编程 (AOP)</a> - 实现代理功能的另一种方式</li>
+                <li><a href="https://en.wikipedia.org/wiki/Decorator_pattern" class="text-blue-600 hover:underline" target="_blank">装饰器模式</a> - 与代理模式结构相似但目的不同的模式</li>
+                <li><a href="https://www.oodesign.com/proxy-pattern.html" class="text-blue-600 hover:underline" target="_blank">OODesign - Proxy Pattern</a> - 详细解释和代码示例</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // 初始化 Lucide 图标
+      lucide.createIcons();
+      
+      // 初始化 Mermaid
+      mermaid.initialize({ startOnLoad: true, theme: 'default' });
+      
+      // 复制代码按钮功能
+      document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const codeBlock = this.parentElement.querySelector('code');
+          navigator.clipboard.writeText(codeBlock.textContent.trim());
+          
+          this.textContent = '已复制!';
+          setTimeout(() => {
+            this.textContent = '复制代码';
+          }, 2000);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
+
