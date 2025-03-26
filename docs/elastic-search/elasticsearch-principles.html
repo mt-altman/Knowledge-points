@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elasticsearch 原理深度剖析</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #007c89;
+            --secondary-color: #5c6ac4;
+            --background-color: #f8fafc;
+            --text-color: #333;
+            --sidebar-width: 280px;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-color);
+            background-color: var(--background-color);
+        }
+        #sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            overflow-y: auto;
+            background-color: white;
+            border-right: 1px solid #e5e7eb;
+            transition: transform 0.3s ease;
+        }
+        #content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            max-width: calc(100% - var(--sidebar-width));
+        }
+        .toc-link {
+            display: block;
+            padding: 0.5rem 1rem;
+            color: #4b5563;
+            text-decoration: none;
+            border-left: 3px solid transparent;
+        }
+        .toc-link:hover {
+            background-color: #f3f4f6;
+            color: var(--primary-color);
+        }
+        .toc-link.active {
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+            background-color: #f0f9fa;
+        }
+        .toc-h2 { padding-left: 2rem; font-size: 0.95rem; }
+        .toc-h3 { padding-left: 3rem; font-size: 0.9rem; }
+        .header-anchor {
+            opacity: 0;
+            margin-left: 0.5rem;
+            transition: opacity 0.2s;
+        }
+        h1:hover .header-anchor,
+        h2:hover .header-anchor,
+        h3:hover .header-anchor,
+        h4:hover .header-anchor {
+            opacity: 1;
+        }
+        blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 1rem;
+            color: #4b5563;
+        }
+        code {
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        pre code {
+            display: block;
+            padding: 1rem;
+            overflow-x: auto;
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.375rem;
+        }
+        .callout {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.5rem;
+            border-left: 4px solid;
+        }
+        .callout-info {
+            background-color: #e0f2fe;
+            border-left-color: #0ea5e9;
+        }
+        .callout-warning {
+            background-color: #fef3c7;
+            border-left-color: #f59e0b;
+        }
+        .callout-tip {
+            background-color: #dcfce7;
+            border-left-color: #22c55e;
+        }
+        .toggle-btn {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 20;
+            background-color: white;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        @media (max-width: 768px) {
+            #sidebar {
+                transform: translateX(-100%);
+                z-index: 10;
+            }
+            #sidebar.active {
+                transform: translateX(0);
+            }
+            #content {
+                margin-left: 0;
+                max-width: 100%;
+                padding: 1rem;
+            }
+            .toggle-btn {
+                display: block;
+            }
+            body.sidebar-active {
+                overflow: hidden;
+            }
+            #overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 5;
+            }
+            body.sidebar-active #overlay {
+                display: block;
+            }
+        }
+        .mermaid {
+            margin: 2rem 0;
+        }
+        .es-diagram {
+            max-width: 100%;
+            height: auto;
+            margin: 1.5rem 0;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+    /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }</style>
+</head>
+<body><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+    <button id="sidebar-toggle" class="toggle-btn">
+        <i class="fas fa-bars"></i>
+    </button>
+  
+    <div id="overlay"></div>
+  
+    <nav id="sidebar" class="sidebar">
+        <div class="p-4 border-b">
+            <h1 class="text-xl font-bold text-gray-900">Elasticsearch 原理深度剖析</h1>
+        </div>
+        <div class="p-4">
+            <div class="mb-2">
+                <a href="#es-architecture" class="toc-link toc-h1"><i class="fas fa-sitemap mr-2"></i>ES 架构概览</a>
+                <a href="#core-concepts" class="toc-link toc-h2">核心概念</a>
+                <a href="#distributed-architecture" class="toc-link toc-h2">分布式架构</a>
+                <a href="#cluster-components" class="toc-link toc-h2">集群组件</a>
+            </div>
+            <div class="mb-2">
+                <a href="#es-internal-structure" class="toc-link toc-h1"><i class="fas fa-cubes mr-2"></i>ES 内部结构</a>
+                <a href="#index-structure" class="toc-link toc-h2">索引结构</a>
+                <a href="#lucene-architecture" class="toc-link toc-h2">Lucene 架构</a>
+                <a href="#segment-structure" class="toc-link toc-h2">段的结构</a>
+            </div>
+            <div class="mb-2">
+                <a href="#index-document-process" class="toc-link toc-h1"><i class="fas fa-file-import mr-2"></i>索引文档流程详解</a>
+                <a href="#write-process-overview" class="toc-link toc-h2">写入流程概述</a>
+                <a href="#coordinating-node" class="toc-link toc-h2">协调节点处理</a>
+                <a href="#primary-shard-indexing" class="toc-link toc-h2">主分片索引过程</a>
+                <a href="#replica-sync" class="toc-link toc-h2">副本同步</a>
+                <a href="#refresh-flush-merge" class="toc-link toc-h2">刷新、冲刷与合并</a>
+            </div>
+            <div class="mb-2">
+                <a href="#read-document-process" class="toc-link toc-h1"><i class="fas fa-file-export mr-2"></i>读取文档流程详解</a>
+                <a href="#read-process-overview" class="toc-link toc-h2">读取流程概述</a>
+                <a href="#get-operation" class="toc-link toc-h2">Get 操作</a>
+                <a href="#search-operation" class="toc-link toc-h2">Search 操作</a>
+                <a href="#query-phases" class="toc-link toc-h2">查询阶段详解</a>
+                <a href="#retrieval-optimization" class="toc-link toc-h2">检索优化</a>
+            </div>
+            <div class="mb-2">
+                <a href="#performance-considerations" class="toc-link toc-h1"><i class="fas fa-tachometer-alt mr-2"></i>性能要点</a>
+                <a href="#caching-mechanisms" class="toc-link toc-h2">缓存机制</a>
+                <a href="#relevance-scoring" class="toc-link toc-h2">相关性评分</a>
+            </div>
+        </div>
+    </nav>
+  
+    <main id="content" class="content">
+        <article class="max-w-4xl mx-auto">
+            <header class="mb-12">
+                <h1 class="text-4xl font-bold mb-4 text-gray-900">Elasticsearch 原理深度剖析 🔍</h1>
+                <p class="text-xl text-gray-600">理解 ES 内部机制，掌握搜索引擎技术精髓</p>
+            </header>
+
+            <section id="es-architecture" class="mb-12">
+                <h2 class="text-3xl font-bold mb-6 text-gray-900">
+                    ES 架构概览 <i class="fas fa-sitemap text-primary-600"></i>
+                    <a href="#es-architecture" class="header-anchor">#</a>
+                </h2>
+
+                <div class="callout callout-info mb-6">
+                    <p class="font-semibold"><i class="fas fa-info-circle mr-2"></i>初识 Elasticsearch</p>
+                    <p>Elasticsearch 是一个基于 Lucene 的分布式搜索和分析引擎，被设计用于处理大规模数据的全文搜索、结构化搜索和分析。了解其核心架构是掌握 ES 原理的第一步。</p>
+                </div>
+
+                <h3 id="core-concepts" class="text-2xl font-semibold mt-8 mb-4">
+                    核心概念
+                    <a href="#core-concepts" class="header-anchor">#</a>
+                </h3>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-300 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-2 px-4 border-b text-left">概念</th>
+                                <th class="py-2 px-4 border-b text-left">说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">文档 (Document)</td>
+                                <td class="py-2 px-4 border-b">ES 中的基本数据单元，类似于数据库中的一行记录，以 JSON 格式存储</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">类型 (Type)</td>
+                                <td class="py-2 px-4 border-b">ES 7.0 之前的概念，类似数据库表，现已废弃</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">索引 (Index)</td>
+                                <td class="py-2 px-4 border-b">文档的集合，类似于数据库中的数据库概念</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">分片 (Shard)</td>
+                                <td class="py-2 px-4 border-b">索引被分割成的片段，每个分片是一个完整的 Lucene 实例</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">副本 (Replica)</td>
+                                <td class="py-2 px-4 border-b">分片的备份，提供高可用性和搜索性能</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">节点 (Node)</td>
+                                <td class="py-2 px-4 border-b">单个 ES 实例，存储数据并参与集群的索引和搜索功能</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">集群 (Cluster)</td>
+                                <td class="py-2 px-4 border-b">一个或多个节点的集合，共同持有数据并提供联合索引和搜索能力</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 id="distributed-architecture" class="text-2xl font-semibold mt-8 mb-4">
+                    分布式架构
+                    <a href="#distributed-architecture" class="header-anchor">#</a>
+                </h3>
+
+                <div class="mermaid">
+graph TB
+    Client[客户端请求] --> CN[协调节点]
+    CN --> DP{分发请求}
+    DP --> N1[数据节点 1]
+    DP --> N2[数据节点 2]
+    DP --> N3[数据节点 3]
+    N1 --> R[结果收集与合并]
+    N2 --> R
+    N3 --> R
+    R --> Client2[返回客户端]
+  
+    subgraph "Elasticsearch 集群"
+        CN
+        DP
+        N1
+        N2
+        N3
+        R
+    end
+</div>
+
+                <p class="mt-6 mb-4">ES 的分布式特性主要体现在以下几个方面：</p>  
+              
+                <ul class="list-disc pl-6 mb-6 space-y-2">
+                    <li><strong>水平扩展</strong>：通过添加节点可以线性扩展系统容量</li>
+                    <li><strong>分片机制</strong>：将索引分成多个分片，分布在不同节点上</li>
+                    <li><strong>复制机制</strong>：每个分片可以有多个副本，提供高可用性</li>
+                    <li><strong>自动均衡</strong>：系统会自动均衡分片在节点间的分布</li>
+                </ul>
+
+                <h3 id="cluster-components" class="text-2xl font-semibold mt-8 mb-4">
+                    集群组件
+                    <a href="#cluster-components" class="header-anchor">#</a>
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h4 class="text-xl font-semibold mb-3"><i class="fas fa-server text-blue-500 mr-2"></i>节点类型</h4>
+                        <ul class="list-disc pl-6 space-y-2">
+                            <li><strong>主节点（Master Node）</strong>：负责轻量级集群管理操作</li>
+                            <li><strong>数据节点（Data Node）</strong>：存储数据并执行数据相关操作</li>
+                            <li><strong>客户端节点（Client Node）</strong>：转发集群请求，不存储数据</li>
+                            <li><strong>协调节点（Coordinating Node）</strong>：分发请求并合并结果</li>
+                            <li><strong>摄取节点（Ingest Node）</strong>：预处理文档，执行转换</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h4 class="text-xl font-semibold mb-3"><i class="fas fa-cogs text-blue-500 mr-2"></i>集群状态</h4>
+                        <ul class="list-disc pl-6 space-y-2">
+                            <li><strong>绿色</strong>：所有主分片和副本分片都正常运行</li>
+                            <li><strong>黄色</strong>：所有主分片正常运行，但至少有一个副本分片不正常</li>
+                            <li><strong>红色</strong>：至少有一个主分片（及其对应的所有副本）不正常</li>
+                        </ul>
+                        <p class="mt-3 text-sm">集群状态反映了数据的完整性和可用性，是监控 ES 健康状况的重要指标。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="es-internal-structure" class="mb-12">
+                <h2 class="text-3xl font-bold mb-6 text-gray-900">
+                    ES 内部结构 <i class="fas fa-cubes text-primary-600"></i>
+                    <a href="#es-internal-structure" class="header-anchor">#</a>
+                </h2>
+
+                <div class="callout callout-tip mb-6">
+                    <p class="font-semibold"><i class="fas fa-lightbulb mr-2"></i>理解底层原理</p>
+                    <p>深入了解 ES 的内部结构和底层 Lucene 架构，对于优化查询性能和解决复杂问题至关重要。</p>
+                </div>
+
+                <h3 id="index-structure" class="text-2xl font-semibold mt-8 mb-4">
+                    索引结构
+                    <a href="#index-structure" class="header-anchor">#</a>
+                </h3>
+
+                <div class="mermaid">
+graph TD
+    Index[索引 Index] --> S1[主分片 Primary Shard]
+    Index --> S2[主分片 Primary Shard]
+    S1 --> R1[副本分片 Replica Shard]
+    S1 --> R2[副本分片 Replica Shard]
+    S2 --> R3[副本分片 Replica Shard]
+    S2 --> R4[副本分片 Replica Shard]
+  
+    S1 --> Seg1[段 Segment]
+    S1 --> Seg2[段 Segment]
+    S1 --> Seg3[段 Segment]
+  
+    Seg1 --> SST[Segment Search Tree]
+    Seg1 --> Docs[文档存储]
+    Seg1 --> Field[字段数据]
+    Seg1 --> DV[DocValues]
+    Seg1 --> NI[标准化信息]
+</div>
+
+                <p class="mt-6 mb-4">Elasticsearch 索引由以下关键部分组成：</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white p-4 rounded shadow">
+                        <h4 class="font-bold mb-2">分片 (Shards)</h4>
+                        <p class="text-sm">索引被分散到多个分片上，每个分片是一个独立的 Lucene 索引，分片分为主分片和副本分片</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow">
+                        <h4 class="font-bold mb-2">段 (Segments)</h4>
+                        <p class="text-sm">分片由多个不可变的段组成，新文档被索引到新段中，段定期合并以优化性能</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow">
+                        <h4 class="font-bold mb-2">提交点 (Commit Point)</h4>
+                        <p class="text-sm">提交点是索引状态的快照，记录所有已知段的文件</p>
+                    </div>
+                </div>
+
+                <h3 id="lucene-architecture" class="text-2xl font-semibold mt-8 mb-4">
+                    Lucene 架构
+                    <a href="#lucene-architecture" class="header-anchor">#</a>
+                </h3>
+
+                <p class="mb-4">Elasticsearch 底层依赖 Lucene 作为核心搜索库。理解 Lucene 的基本架构有助于深入了解 ES 的工作原理：</p>
+
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h4 class="text-xl font-semibold mb-3">Lucene 核心组件</h4>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li><strong>IndexWriter</strong>：负责创建和维护索引</li>
+                        <li><strong>IndexReader</strong>：提供对索引的只读访问</li>
+                        <li><strong>IndexSearcher</strong>：利用 IndexReader 执行搜索</li>
+                        <li><strong>Query</strong>：表示用户的搜索条件</li>
+                        <li><strong>Analyzer</strong>：处理文本，执行分词、过滤等操作</li>
+                    </ul>
+                </div>
+
+                <h3 id="segment-structure" class="text-2xl font-semibold mt-8 mb-4">
+                    段的结构
+                    <a href="#segment-structure" class="header-anchor">#</a>
+                </h3>
+
+                <p class="mb-4">段是 Lucene 索引的基本构建块，每个段包含多个文件，存储不同类型的数据：</p>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-300 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-2 px-4 border-b text-left">文件后缀</th>
+                                <th class="py-2 px-4 border-b text-left">用途</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">.nvd, .nvm</td>
+                                <td class="py-2 px-4 border-b">标准化因子，用于词项权重计算</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">.tim, .tip</td>
+                                <td class="py-2 px-4 border-b">词条字典，存储词元到倒排表的映射</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">.doc</td>
+                                <td class="py-2 px-4 border-b">存储文档、词频信息</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">.pos</td>
+                                <td class="py-2 px-4 border-b">位置信息，用于短语查询</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">.pay</td>
+                                <td class="py-2 px-4 border-b">有效载荷数据，存储偏移量等</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">.fdx, .fdt</td>
+                                <td class="py-2 px-4 border-b">存储原始文档字段</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">.dvd, .dvm</td>
+                                <td class="py-2 px-4 border-b">DocValues，用于聚合和排序</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6">
+                    <h4 class="text-xl font-semibold mb-3">索引的倒排结构</h4>
+                    <p class="mb-4">Lucene 使用倒排索引结构，这是信息检索系统的核心：</p>
+                  
+                    <div class="mermaid">
+graph LR
+    A["Term(词元)"] -->|映射到| B["Posting List(倒排表)"]
+    B --> C["DocID, TF, Position..."]
+  
+    subgraph "倒排索引"
+        A
+        B
+        C
+    end
+</div>
+                  
+                    <p class="mt-4">倒排索引中的每个词元对应一个倒排表，包含：</p>
+                    <ul class="list-disc pl-6 space-y-1 mt-2">
+                        <li>包含该词元的文档 ID 列表</li>
+                        <li>词频（TF）信息</li>
+                        <li>位置信息（用于短语查询）</li>
+                        <li>偏移量信息（用于高亮显示）</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="index-document-process" class="mb-12">
+                <h2 class="text-3xl font-bold mb-6 text-gray-900">
+                    索引文档流程详解 <i class="fas fa-file-import text-primary-600"></i>
+                    <a href="#index-document-process" class="header-anchor">#</a>
+                </h2>
+
+                <div class="callout callout-info mb-6">
+                    <p class="font-semibold"><i class="fas fa-info-circle mr-2"></i>写入过程的理解</p>
+                    <p>ES 的文档索引过程是一个复杂的分布式流程，涉及多个节点协作和多层内存/磁盘操作，了解这个过程有助于优化写入性能。</p>
+                </div>
+
+                <h3 id="write-process-overview" class="text-2xl font-semibold mt-8 mb-4">
+                    写入流程概述
+                    <a href="#write-process-overview" class="header-anchor">#</a>
+                </h3>
+
+                <div class="mermaid">
+sequenceDiagram
+    participant Client as 客户端
+    participant CN as 协调节点
+    participant PN as 主分片节点
+    participant RN as 副本分片节点
+    participant Lucene as Lucene 索引
+  
+    Client->>CN: 索引请求
+    CN->>CN: 验证请求
+    CN->>PN: 路由到主分片
+    PN->>PN: 验证&预处理
+    PN->>Lucene: 写入内存缓冲区
+    Lucene-->>PN: 确认
+    PN->>RN: 复制操作
+    RN->>Lucene: 写入副本
+    Lucene-->>RN: 确认
+    RN-->>PN: 确认完成
+    PN-->>CN: 报告成功
+    CN-->>Client: 返回响应
+</div>
+
+                <h3 id="coordinating-node" class="text-2xl font-semibold mt-8 mb-4">
+                    协调节点处理
+                    <a href="#coordinating-node" class="header-anchor">#</a>
+                </h3>
+
+                <p class="mb-4">索引请求首先到达协调节点，协调节点执行以下操作：</p>
+
+                <ol class="list-decimal pl-6 space-y-2 mb-6">
+                    <li><strong>验证请求</strong>：检查请求的有效性，包括索引名称、映射兼容性等</li>
+                    <li><strong>生成文档 ID</strong>：如果请求中没有指定 ID，则生成一个唯一的文档 ID</li>
+                    <li><strong>确定路由目标</strong>：根据路由算法确定文档应该存储在哪个分片
+                        <ul class="list-disc pl-6 mt-1">
+                            <li>默认使用文档 ID 的哈希值：<code>shard_num = hash(_routing) % num_primary_shards</code></li>
+                            <li>也可以通过指定 <code>_routing</code> 参数来自定义路由</li>
+                        </ul>
+                    </li>
+                    <li><strong>转发请求</strong>：将请求转发到包含目标分片的节点</li>
+                </ol>
+
+                <h3 id="primary-shard-indexing" class="text-2xl font-semibold mt-8 mb-4">
+                    主分片索引过程
+                    <a href="#primary-shard-indexing" class="header-anchor">#</a>
+                </h3>
+
+                <p class="mb-4">主分片节点接收到索引请求后，执行以下步骤：</p>
+
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <ol class="list-decimal pl-6 space-y-3">
+                        <li>
+                            <strong>验证操作</strong>：检查版本冲突、映射兼容性等
+                        </li>
+                        <li>
+                            <strong>执行前置操作</strong>：
+                            <ul class="list-disc pl-6 mt-1">
+                                <li>应用动态映射更新（如果需要）</li>
+                                <li>执行用户定义的 Ingest Pipeline</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>文档解析与分析</strong>：
+                            <ul class="list-disc pl-6 mt-1">
+                                <li>解析文档字段</li>
+                                <li>对文本字段执行分析过程（分词、标准化等）</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>写入内存缓冲区</strong>：
+                            <ul class="list-disc pl-6 mt-1">
+                                <li>文档首先写入 Lucene 的内存缓冲区</li>
+                                <li>同时写入事务日志（Translog）</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>标记操作完成</strong>：操作在主分片上完成，准备同步到副本
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h4 class="text-xl font-semibold mb-3">事务日志（Translog）</h4>
+                        <p class="mb-2">Translog 是 ES 的预写日志（WAL），提供持久性保证：</p>
+                        <ul class="list-disc pl-6 space-y-1">
+                            <li>每个分片维护自己的 Translog</li>
+                            <li>记录尚未刷盘的所有操作</li>
+                            <li>在节点重启后用于恢复尚未持久化的操作</li>
+                            <li>默认每个请求都会提交（fsync）到磁盘</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-semibold mb-3">版本控制机制</h4>
+                        <p class="mb-2">ES 使用版本号处理并发写入：</p>
+                        <ul class="list-disc pl-6 space-y-1">
+                            <li>内部版本控制：每次更新自动递增版本号</li>
+                            <li>外部版本控制：用户指定版本号，ES 确保递增</li>
+                            <li>使用 <code>_version</code> 字段存储当前版本</li>
+                            <li>支持乐观并发控制（OCC）模式</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 id="replica-sync" class="text-2xl font-semibold mt-8 mb-4">
+                    副本同步
+                    <a href="#replica-sync" class="header-anchor">#</a>
+                </h3>
+
+                <p class="mb-4">主分片完成索引操作后，需要将变更同步到副本分片：</p>
+
+                <ol class="list-decimal pl-6 space-y-2 mb-6">
+                    <li><strong>并行复制</strong>：主分片将操作并行转发给所有副本分片</li>
+                    <li><strong>副本执行</strong>：副本分片执行与主分片相同的索引操作</li>
+                    <li><strong>确认机制</strong>：所有副本分片确认操作完成后，主分片向协调节点报告成功</li>
+                    <li><strong>响应客户端</strong>：协调节点收到主分片的成功响应后，向客户端返回成功</li>
+                </ol>
+
+                <div class="callout callout-warning mb-6">
+                    <p class="font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i>写一致性</p>
+                    <p>ES 支持不同级别的写一致性要求，通过 <code>wait_for_active_shards</code> 参数控制：</p>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li><strong>one</strong>（默认）：只需主分片确认</li>
+                        <li><strong>all</strong>：所有主分片和副本分片都必须确认</li>
+                        <li><strong>指定数字</strong>：要求特定数量的分片确认</li>
+                    </ul>
+                </div>
+
+                <h3 id="refresh-flush-merge" class="text-2xl font-semibold mt-8 mb-4">
+                    刷新、冲刷与合并
+                    <a href="#refresh-flush-merge" class="header-anchor">#</a>
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white p-5 rounded shadow">
+                        <h4 class="font-bold mb-2 text-lg">刷新（Refresh）</h4>
+                        <p class="text-sm mb-2">将内存缓冲区的内容转换为段，使其可被搜索，但不刷盘</p>
+                        <ul class="list-disc pl-5 text-xs space-y-1">
+                            <li>默认每 1 秒自动刷新</li>
+                            <li>产生新的 Lucene 段</li>
+                            <li>通过 <code>refresh_interval</code> 设置</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-5 rounded shadow">
+                        <h4 class="font-bold mb-2 text-lg">冲刷（Flush）</h4>
+                        <p class="text-sm mb-2">完整持久化操作，将段刷盘并清除 translog</p>
+                        <ul class="list-disc pl-5 text-xs space-y-1">
+                            <li>定期自动执行（30 分钟或 translog 过大）</li>
+                            <li>触发 Lucene commit</li>
+                            <li>创建提交点（checkpoint）</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-5 rounded shadow">
+                        <h4 class="font-bold mb-2 text-lg">合并（Merge）</h4>
+                        <p class="text-sm mb-2">将多个小段合并为较大的段，优化搜索性能</p>
+                        <ul class="list-disc pl-5 text-xs space-y-1">
+                            <li>后台自动执行</li>
+                            <li>减少段数量，提高搜索效率</li>
+                            <li>删除已标记删除的文档</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="mermaid">
+flowchart TB
+    A[内存缓冲区] -->|刷新 refresh| B[不可变段]
+    A -->|写入| C[Translog]
+    B -->|合并 merge| D[更大的段]
+    B -->|冲刷 flush| E[磁盘段]
+    C -->|冲刷 flush| F[清空 Translog]
+    D -->|冲刷 flush| E
+</div>
+            </section>
+
+            <section id="read-document-process" class="mb-12">
+                <h2 class="text-3xl font-bold mb-6 text-gray-900">
+                    读取文档流程详解 <i class="fas fa-file-export text-primary-600"></i>
+                    <a href="#read-document-process" class="header-anchor">#</a>
+                </h2>
+
+                <div class="callout callout-info mb-6">
+                    <p class="font-semibold"><i class="fas fa-info-circle mr-2"></i>理解 ES 的读取机制</p>
+                    <p>Elasticsearch 提供了两种主要的读取操作：基于 ID 的文档检索（GET）和基于查询的搜索（SEARCH）。两者的流程和性能特征有明显差异。</p>
+                </div>
+
+                <h3 id="read-process-overview" class="text-2xl font-semibold mt-8 mb-4">
+                    读取流程概述
+                    <a href="#read-process-overview" class="header-anchor">#</a>
+                </h3>
+              
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h4 class="text-xl font-semibold mb-3"><i class="fas fa-id-card text-blue-500 mr-2"></i>GET 操作</h4>
+                        <p class="mb-3">根据 ID 检索单个文档：</p>
+                        <ol class="list-decimal pl-6 space-y-1 text-sm">
+                            <li>协调节点根据文档 ID 计算目标分片</li>
+                            <li>请求被转发到拥有该分片的节点</li>
+                            <li>节点从本地分片检索文档</li>
+                            <li>返回文档给协调节点</li>
+                            <li>协调节点返回文档给客户端</li>
+                        </ol>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h4 class="text-xl font-semibold mb-3"><i class="fas fa-search text-blue-500 mr-2"></i>SEARCH 操作</h4>
+                        <p class="mb-3">基于查询条件搜索文档：</p>
+                        <ol class="list-decimal pl-6 space-y-1 text-sm">
+                            <li>协调节点广播查询请求到相关分片</li>
+                            <li>每个分片执行本地搜索</li>
+                            <li>分片返回文档 ID 和排序值（query 阶段）</li>
+                            <li>协调节点合并结果并确定最终集合</li>
+                            <li>协调节点请求完整文档（fetch 阶段）</li>
+                            <li>返回结果集给客户端</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <h3 id="get-operation" class="text-2xl font-semibold mt-8 mb-4">
+                    Get 操作
+                    <a href="#get-operation" class="header-anchor">#</a>
+                </h3>
+
+                <div class="mermaid">
+sequenceDiagram
+    participant Client as 客户端
+    participant CN as 协调节点
+    participant Shard as 目标分片
+  
+    Client->>CN: GET 请求 (索引, ID)
+    CN->>CN: 确定分片位置
+    CN->>Shard: 转发请求
+    Shard->>Shard: 查找文档
+    Note over Shard: 1. 检查实时性时间 <br/>2. 检查事务日志 <br/>3. 检查段缓存 <br/>4. 检查Lucene索引
+    Shard-->>CN: 返回文档
+    CN-->>Client: 返回响应
+</div>
+
+                <p class="mt-6 mb-4">Get 操作的详细流程：</p>
+
+                <ol class="list-decimal pl-6 space-y-2 mb-6">
+                    <li><strong>路由确定</strong>：协调节点根据文档 ID 和路由值确定文档所在的分片</li>
+                    <li><strong>分片选择</strong>：协调节点从可用的主分片或副本分片中选择一个进行请求，支持负载均衡</li>
+                    <li><strong>文档查找</strong>：目标节点按以下顺序查找文档：
+                        <ul class="list-disc pl-6 mt-1">
+                            <li>版本映射（Version Map）：内存中的最近更新缓存</li>
+                            <li>事务日志（Translog）：包含尚未刷新到 Lucene 的最新操作</li>
+                            <li>段缓存（Segment Memory）：最近刷新的段</li>
+                            <li>Lucene 索引：持久化的段文件</li>
+                        </ul>
+                    </li>
+                    <li><strong>实时性</strong>：默认 Get 操作是实时的，会考虑尚未刷新的更新</li>
+                    <li><strong>结果返回</strong>：找到文档后，返回给协调节点，再返回给客户端</li>
+                </ol>
+
+                <h3 id="search-operation" class="text-2xl font-semibold mt-8 mb-4">
+                    Search 操作
+                    <a href="#search-operation" class="header-anchor">#</a>
+                </h3>
+
+                <p class="mb-4">Search 操作是 ES 最复杂也是最强大的功能，它分为查询阶段和获取阶段两个主要步骤：</p>
+
+                <div class="mermaid">
+sequenceDiagram
+    participant Client as 客户端
+    participant CN as 协调节点
+    participant S1 as 分片 1
+    participant S2 as 分片 2
+  
+    Client->>CN: 搜索请求
+  
+    Note over CN,S2: 查询阶段 (Query Phase)
+    CN->>S1: 发送查询请求
+    CN->>S2: 发送查询请求
+    S1->>S1: 构建本地优先队列
+    S2->>S2: 构建本地优先队列
+    S1-->>CN: 返回文档IDs和排序值
+    S2-->>CN: 返回文档IDs和排序值
+    CN->>CN: 合并结果，构建全局排序
+  
+    Note over CN,S2: 获取阶段 (Fetch Phase)
+    CN->>S1: 获取完整文档
+    CN->>S2: 获取完整文档
+    S1-->>CN: 返回文档内容
+    S2-->>CN: 返回文档内容
+    CN->>CN: 组装最终结果
+  
+    CN-->>Client: 返回搜索结果
+</div>
+
+                <h3 id="query-phases" class="text-2xl font-semibold mt-8 mb-4">
+                    查询阶段详解
+                    <a href="#query-phases" class="header-anchor">#</a>
+                </h3>
+
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h4 class="text-xl font-semibold mb-3">查询阶段 (Query Phase)</h4>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li><strong>查询分发</strong>：协调节点将查询请求发送到每个相关分片（主分片或其副本）</li>
+                        <li><strong>本地执行</strong>：每个分片在本地执行查询，步骤包括：
+                            <ul class="list-disc pl-6 mt-1">
+                                <li>解析查询条件（Query 和 Filter）</li>
+                                <li>创建查询执行计划</li>
+                                <li>在段级别执行查询</li>
+                                <li>收集匹配文档并计算相关性分数</li>
+                                <li>对结果排序并建立本地优先队列（默认大小为 10）</li>
+                            </ul>
+                        </li>
+                        <li><strong>结果返回</strong>：各分片仅返回文档 ID、排序值和相关性分数，不返回完整文档</li>
+                        <li><strong>结果合并</strong>：协调节点合并所有分片的结果，进行全局排序</li>
+                    </ol>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h4 class="text-xl font-semibold mb-3">获取阶段 (Fetch Phase)</h4>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li><strong>多 ID 获取</strong>：协调节点向相关分片发送多文档获取请求，请求最终结果集中的文档</li>
+                        <li><strong>文档加载</strong>：分片从存储中加载完整的文档内容</li>
+                        <li><strong>后处理</strong>：执行文档转换和过滤，包括：
+                            <ul class="list-disc pl-6 mt-1">
+                                <li>源过滤（_source filtering）</li>
+                                <li>字段包含/排除处理</li>
+                                <li>高亮处理（如果请求）</li>
+                                <li>脚本字段计算</li>
+                            </ul>
+                        </li>
+                        <li><strong>最终组装</strong>：协调节点将所有文档组装为最终的搜索结果</li>
+                        <li><strong>响应返回</strong>：完整的搜索结果返回给客户端</li>
+                    </ol>
+                </div>
+
+                <h3 id="retrieval-optimization" class="text-2xl font-semibold mt-8 mb-4">
+                    检索优化
+                    <a href="#retrieval-optimization" class="header-anchor">#</a>
+                </h3>
+
+                <p class="mb-4">ES 提供了多种机制优化检索性能：</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded shadow">
+                        <h4 class="font-bold mb-2 text-lg">查询优化</h4>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li><strong>提前终止（Early Termination）</strong>：当满足特定条件时提前停止搜索</li>
+                            <li><strong>跳过（Skipping）</strong>：跳过不可能匹配的段</li>
+                            <li><strong>布尔查询优化</strong>：先执行成本低的过滤条件</li>
+                            <li><strong>缓存利用</strong>：利用查询缓存、过滤器缓存等提高性能</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-5 rounded shadow">
+                        <h4 class="font-bold mb-2 text-lg">分页优化</h4>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li><strong>浅分页</strong>：对于 from + size &lt; 10000 的请求，使用标准分页</li>
+                            <li><strong>深分页问题</strong>：避免 deep paging 导致的性能问题</li>
+                            <li><strong>search_after</strong>：基于游标的分页，适用于大结果集的遍历</li>
+                            <li><strong>scroll API</strong>：适用于一次性检索大量文档，创建时间点快照</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="callout callout-tip mb-6">
+                    <p class="font-semibold"><i class="fas fa-lightbulb mr-2"></i>性能提示</p>
+                    <p>优化搜索性能的关键策略：</p>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li>尽可能使用 Filter 上下文，可以缓存结果</li>
+                        <li>对于高频搜索模式，使用索引排序优化</li>
+                        <li>适当使用 preference 参数控制路由，提高缓存利用率</li>
+                        <li>使用 _source 过滤减少网络传输</li>
+                        <li>对于复杂聚合，考虑使用预计算或近似聚合</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="performance-considerations" class="mb-12">
+                <h2 class="text-3xl font-bold mb-6 text-gray-900">
+                    性能要点 <i class="fas fa-tachometer-alt text-primary-600"></i>
+                    <a href="#performance-considerations" class="header-anchor">#</a>
+                </h2>
+
+                <h3 id="caching-mechanisms" class="text-2xl font-semibold mt-8 mb-4">
+                    缓存机制
+                    <a href="#caching-mechanisms" class="header-anchor">#</a>
+                </h3>
+
+                <p class="mb-4">ES 使用多种缓存提高性能：</p>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-300 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-2 px-4 border-b text-left">缓存类型</th>
+                                <th class="py-2 px-4 border-b text-left">用途</th>
+                                <th class="py-2 px-4 border-b text-left">特点</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">Node Query Cache</td>
+                                <td class="py-2 px-4 border-b">缓存查询结果（仅限于 Filter 上下文）</td>
+                                <td class="py-2 px-4 border-b">LRU 策略，基于段级别，段变更时自动失效</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">Shard Request Cache</td>
+                                <td class="py-2 px-4 border-b">缓存聚合、建议器等结果</td>
+                                <td class="py-2 px-4 border-b">默认启用，分片刷新时失效</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">Field Data Cache</td>
+                                <td class="py-2 px-4 border-b">缓存字段数据，用于聚合和排序</td>
+                                <td class="py-2 px-4 border-b">基于堆内存，占用空间较大</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-4 border-b font-medium">Index Buffer</td>
+                                <td class="py-2 px-4 border-b">用于索引操作的缓冲区</td>
+                                <td class="py-2 px-4 border-b">提高写入性能，默认占 JVM 堆的 10%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 id="relevance-scoring" class="text-2xl font-semibold mt-8 mb-4">
+                    相关性评分
+                    <a href="#relevance-scoring" class="header-anchor">#</a>
+                </h3>
+
+                <p class="mb-4">ES 中的相关性评分是搜索引擎的核心功能之一：</p>
+
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h4 class="text-xl font-semibold mb-3">评分计算</h4>
+                    <p class="mb-3">ES 7.0 开始默认使用 BM25 算法计算相关性，主要考虑以下因素：</p>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li><strong>词频（TF）</strong>：词在文档中出现的频率，出现越多分数越高（非线性增长）</li>
+                        <li><strong>逆文档频率（IDF）</strong>：衡量词的稀有程度，越稀有权重越大</li>
+                        <li><strong>字段长度归一化</strong>：较短字段中的匹配通常比长字段中的匹配更相关</li>
+                        <li><strong>协调因子</strong>：匹配查询中更多词条的文档分数更高</li>
+                    </ul>
+                </div>
+
+                <p class="mb-4">相关性评分可能出现的问题及解决方案：</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded shadow">
+                        <h4 class="font-bold mb-2 text-lg">分片评分问题</h4>
+                        <p class="text-sm mb-2">在多分片环境下，由于每个分片只知道自己的文档统计信息，可能导致评分不统一。</p>
+                        <p class="text-sm font-semibold">解决方案：</p>
+                        <ul class="list-disc pl-5 text-xs space-y-1">
+                            <li>使用 <code>search_type=dfs_query_then_fetch</code> 进行全局评分</li>
+                            <li>确保索引有合理数量的分片</li>
+                            <li>在单个分片上测试评分逻辑</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-5 rounded shadow">
+                        <h4 class="font-bold mb-2 text-lg">评分调优</h4>
+                        <p class="text-sm mb-2">自定义和调整相关性评分的常用方法：</p>
+                        <ul class="list-disc pl-5 text-xs space-y-1">
+                            <li>使用 <code>boost</code> 参数提升特定字段或词的权重</li>
+                            <li>使用函数评分查询（function_score）添加自定义因子</li>
+                            <li>使用字段加权（field boosting）调整多字段查询权重</li>
+                            <li>通过 <code>script_score</code> 实现完全自定义的评分逻辑</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="mt-12 border-t pt-8">
+                    <h4 class="text-xl font-semibold mb-6">总结</h4>
+                    <p class="mb-4">通过深入理解 Elasticsearch 的内部原理，我们能够：</p>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li>构建更高效的索引和查询策略</li>
+                        <li>更好地诊断和解决性能问题</li>
+                        <li>合理规划资源分配和集群扩展</li>
+                        <li>在架构设计时做出更明智的决策</li>
+                    </ul>
+                    <p class="mt-4">ES 的设计结合了搜索引擎的复杂性和分布式系统的挑战，理解其工作原理是充分利用这一强大工具的关键。</p>
+                </div>
+            </section>
+        </article>
+    </main>
+
+    <script>
+        // 初始化 Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true }
+        });
+      
+        // 处理侧边栏切换
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const body = document.body;
+      
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            body.classList.toggle('sidebar-active');
+        });
+      
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            body.classList.remove('sidebar-active');
+        });
+      
+        // 处理锚点链接点击
+        const tocLinks = document.querySelectorAll('.toc-link');
+        tocLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                // 移动端自动关闭侧边栏
+                if (window.innerWidth < 768) {
+                    sidebar.classList.remove('active');
+                    body.classList.remove('sidebar-active');
+                }
+              
+                // 移除所有活动状态
+                tocLinks.forEach(l => l.classList.remove('active'));
+                // 给当前点击的链接添加活动状态
+                link.classList.add('active');
+            });
+        });
+      
+        // 滚动监听，高亮当前目录项
+        window.addEventListener('scroll', () => {
+            const scrollPosition = window.scrollY;
+            const headings = document.querySelectorAll('h2, h3');
+          
+            let currentSection = '';
+          
+            headings.forEach(heading => {
+                const sectionTop = heading.offsetTop - 100;
+              
+                if (scrollPosition >= sectionTop) {
+                    currentSection = heading.id;
+                }
+            });
+          
+            if (currentSection) {
+                tocLinks.forEach(link => {
+                    link.classList.remove('active');
+                  
+                    if (link.getAttribute('href') === `#${currentSection}`) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

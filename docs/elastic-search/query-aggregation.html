@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>查询和聚合的基础使用</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Inter:wght@400;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: 'Noto Sans SC', 'Inter', sans-serif; }
+        code { font-family: 'Fira Code', monospace; }
+        .bg-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+        .code-block { background-color: #f8f9fa; border-radius: 0.5rem; }
+        @media print {
+            .no-print { display: none; }
+            .page-break { page-break-after: always; }
+        }
+    /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }</style>
+</head>
+<body class="bg-gray-50"><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+    <header class="bg-gradient text-white p-6 shadow-lg">
+        <div class="container mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <h1 class="text-3xl font-bold mb-2 md:mb-0">查询和聚合的基础使用</h1>
+                <span class="bg-yellow-500 text-gray-900 px-3 py-1 rounded-full text-sm font-semibold">初级</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-6">
+        <!-- 1. 术语定义 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">术语定义</h2>
+            <div class="space-y-4">
+                <div>
+                    <p class="mb-2"><strong>查询 (Query)</strong>：在数据库中检索和筛选数据的操作，用于从数据集中获取满足特定条件的记录。</p>
+                    <p class="mb-2"><strong>聚合 (Aggregation)</strong>：对数据集进行统计分析的过程，通过计算汇总值（如总和、平均值、最大值等）来提取数据洞察。</p>
+                </div>
+                <div class="flex items-center text-gray-700 bg-blue-50 p-3 rounded-lg">
+                    <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <p>查询和聚合是数据处理的基础操作，几乎所有数据库系统都支持这些功能。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 实现细节与优化 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">实现细节与优化</h2>
+            
+            <h3 class="text-xl font-semibold mt-4 mb-2">基本查询操作</h3>
+            <div class="code-block p-4 mb-4 overflow-x-auto">
+                <pre><code class="language-sql">-- SQL基本查询示例
+SELECT 列名1, 列名2 
+FROM 表名
+WHERE 条件;
+
+-- 示例：查询所有年龄大于18的用户
+SELECT user_id, username, age 
+FROM users 
+WHERE age > 18;</code></pre>
+                <button class="copy-btn mt-2 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-sm">复制代码</button>
+            </div>
+
+            <h3 class="text-xl font-semibold mt-4 mb-2">基本聚合操作</h3>
+            <div class="code-block p-4 mb-4 overflow-x-auto">
+                <pre><code class="language-sql">-- SQL基本聚合示例
+SELECT 聚合函数(列名)
+FROM 表名
+[GROUP BY 分组列];
+
+-- 示例：计算每个部门的平均工资
+SELECT department_id, AVG(salary) as avg_salary
+FROM employees
+GROUP BY department_id;</code></pre>
+                <button class="copy-btn mt-2 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-sm">复制代码</button>
+            </div>
+
+            <div class="mt-4">
+                <h3 class="text-xl font-semibold mb-2">查询和聚合的工作流程</h3>
+                <div class="mermaid-diagram">
+                    <div class="mermaid">
+graph TD
+    A[数据源] --> B[查询解析]
+    B --> C[执行计划生成]
+    C --> D[数据过滤/WHERE]
+    D --> E{是否需要聚合?}
+    E -->|是| F[分组/GROUP BY]
+    F --> G[聚合计算]
+    E -->|否| H[结果排序/ORDER BY]
+    G --> H
+    H --> I[结果限制/LIMIT]
+    I --> J[返回结果集]
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 应用场景 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">应用场景</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="border rounded-lg p-4">
+                    <h3 class="font-semibold text-lg mb-2">电子商务</h3>
+                    <p>查询：获取特定价格范围内的产品</p>
+                    <p>聚合：计算每个类别的销售总额</p>
+                </div>
+                <div class="border rounded-lg p-4">
+                    <h3 class="font-semibold text-lg mb-2">社交媒体</h3>
+                    <p>查询：检索特定用户的所有帖子</p>
+                    <p>聚合：统计每日活跃用户数量</p>
+                </div>
+            </div>
+
+            <h3 class="text-xl font-semibold mt-4 mb-2">实际示例：销售数据分析</h3>
+            <div class="code-block p-4 mb-4 overflow-x-auto">
+                <pre><code class="language-sql">-- 查询：获取最近30天的高价值订单
+SELECT order_id, customer_name, total_amount
+FROM orders
+WHERE order_date >= DATEADD(day, -30, GETDATE())
+  AND total_amount > 1000
+ORDER BY total_amount DESC;
+
+-- 聚合：按地区统计销售额
+SELECT region, COUNT(*) as order_count, SUM(total_amount) as total_sales
+FROM orders
+GROUP BY region
+ORDER BY total_sales DESC;</code></pre>
+                <button class="copy-btn mt-2 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-sm">复制代码</button>
+            </div>
+        </section>
+
+        <!-- 4. 比较分析 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">比较分析</h2>
+            
+            <h3 class="text-xl font-semibold mb-3">常见聚合函数比较</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="py-2 px-4 border">聚合函数</th>
+                            <th class="py-2 px-4 border">用途</th>
+                            <th class="py-2 px-4 border">示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="py-2 px-4 border">COUNT()</td>
+                            <td class="py-2 px-4 border">计算行数</td>
+                            <td class="py-2 px-4 border"><code>COUNT(*)</code></td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 px-4 border">SUM()</td>
+                            <td class="py-2 px-4 border">计算总和</td>
+                            <td class="py-2 px-4 border"><code>SUM(price)</code></td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 px-4 border">AVG()</td>
+                            <td class="py-2 px-4 border">计算平均值</td>
+                            <td class="py-2 px-4 border"><code>AVG(score)</code></td>
+                        </tr>
+                        <tr>
+                            <td class="py-2 px-4 border">MAX()/MIN()</td>
+                            <td class="py-2 px-4 border">找出最大/最小值</td>
+                            <td class="py-2 px-4 border"><code>MAX(salary)</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-xl font-semibold mt-4 mb-3">不同数据库系统的查询语法比较</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="border rounded-lg p-4">
+                    <h4 class="font-semibold mb-2">SQL数据库 (MySQL, PostgreSQL)</h4>
+                    <p class="text-sm">使用标准SQL语法，支持复杂的JOIN和子查询</p>
+                </div>
+                <div class="border rounded-lg p-4">
+                    <h4 class="font-semibold mb-2">NoSQL数据库 (MongoDB)</h4>
+                    <p class="text-sm">使用JSON风格的查询语法，聚合管道操作</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. 总结 -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">总结</h2>
+            
+            <div class="mermaid-diagram mb-4">
+                <div class="mermaid">
+mindmap
+  root((查询和聚合))
+    基本概念
+      查询：数据检索
+      聚合：数据汇总
+    常见操作
+      SELECT
+      WHERE
+      GROUP BY
+      HAVING
+      ORDER BY
+    优化技巧
+      索引使用
+      查询重写
+      避免全表扫描
+                </div>
+            </div>
+
+            <h3 class="text-xl font-semibold mb-3">常见问题与解决方案</h3>
+            <div class="space-y-3">
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <p class="font-semibold">问题：查询速度慢</p>
+                    <p>解决方案：创建适当的索引，优化查询语句，避免使用SELECT *</p>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <p class="font-semibold">问题：聚合操作内存消耗大</p>
+                    <p>解决方案：限制结果集大小，使用分批处理，考虑使用物化视图</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. 参考资料 -->
+        <section class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">参考资料</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">中文资源</h3>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li><a href="#" class="text-blue-600 hover:underline">《SQL必知必会》中文版</a></li>
+                        <li><a href="#" class="text-blue-600 hover:underline">菜鸟教程 - SQL教程</a></li>
+                        <li><a href="#" class="text-blue-600 hover:underline">W3School中文网 - SQL教程</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">英文资源</h3>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li><a href="#" class="text-blue-600 hover:underline">SQL for Data Analysis</a></li>
+                        <li><a href="#" class="text-blue-600 hover:underline">PostgreSQL Documentation</a></li>
+                        <li><a href="#" class="text-blue-600 hover:underline">MongoDB Aggregation Pipeline</a></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white p-6 mt-6">
+        <div class="container mx-auto text-center">
+            <p>© 2023 技术术语学习助手 | 查询和聚合的基础使用</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化Mermaid图表
+            mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+            
+            // 代码复制功能
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const codeBlock = this.previousElementSibling;
+                    const code = codeBlock.textContent;
+                    navigator.clipboard.writeText(code).then(() => {
+                        const originalText = this.textContent;
+                        this.textContent = '已复制!';
+                        setTimeout(() => {
+                            this.textContent = originalText;
+                        }, 2000);
+                    });
+                });
+            });
+            
+            // 响应式调整
+            function adjustForMobile() {
+                if (window.innerWidth < 768) {
+                    document.querySelectorAll('.mermaid-diagram').forEach(diagram => {
+                        diagram.style.transform = 'scale(0.8)';
+                        diagram.style.transformOrigin = 'left top';
+                    });
+                } else {
+                    document.querySelectorAll('.mermaid-diagram').forEach(diagram => {
+                        diagram.style.transform = 'none';
+                    });
+                }
+            }
+            
+            window.addEventListener('resize', adjustForMobile);
+            adjustForMobile();
+        });
+    </script>
+</body>
+</html>

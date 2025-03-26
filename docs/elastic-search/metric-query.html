@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elasticsearch聚合查询之Metric聚合详解</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --info-color: #17a2b8;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --cf-blue: #5E35B1;
+            --cf-purple: #9C27B0;
+            --cf-pink: #E91E63;
+            --cf-orange: #FF9800;
+            --cf-green: #4CAF50;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .sidebar {
+            background-color: #f8f9fa;
+            border-right: 1px solid #e9ecef;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            overflow-y: auto;
+        }
+        .sidebar-link {
+            display: block;
+            padding: 0.5rem 1rem;
+            color: #495057;
+            text-decoration: none;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-link:hover {
+            background-color: #e9ecef;
+            border-left-color: var(--cf-purple);
+        }
+        .sidebar-link.active {
+            background-color: #e9ecef;
+            border-left-color: var(--cf-purple);
+            font-weight: 600;
+        }
+        .content {
+            padding: 2rem;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            font-size: 2.25rem;
+            color: var(--cf-purple);
+            border-bottom: 2px solid var(--cf-purple);
+            padding-bottom: 0.5rem;
+        }
+        h2 {
+            font-size: 1.75rem;
+            color: var(--cf-blue);
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 0.25rem;
+        }
+        h3 {
+            font-size: 1.5rem;
+            color: var(--cf-pink);
+        }
+        h4 {
+            font-size: 1.25rem;
+            color: var(--cf-orange);
+        }
+        pre {
+            background-color: #f8f9fa;
+            border-radius: 0.25rem;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border-left: 4px solid var(--cf-blue);
+        }
+        code {
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.875rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        th, td {
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        blockquote {
+            border-left: 4px solid var(--cf-green);
+            padding-left: 1rem;
+            margin: 1rem 0;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.25rem;
+        }
+        .note {
+            background-color: #e8f4fd;
+            border-left: 4px solid var(--cf-blue);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.25rem;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid var(--warning-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.25rem;
+        }
+        .tip {
+            background-color: #d4edda;
+            border-left: 4px solid var(--cf-green);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.25rem;
+        }
+        .mobile-menu-btn {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+                position: fixed;
+                top: 1rem;
+                left: 1rem;
+                z-index: 1000;
+                background-color: var(--cf-purple);
+                color: white;
+                border: none;
+                border-radius: 0.25rem;
+                padding: 0.5rem;
+            }
+            .sidebar {
+                position: fixed;
+                left: -100%;
+                width: 80%;
+                z-index: 999;
+                transition: left 0.3s ease;
+            }
+            .sidebar.show {
+                left: 0;
+            }
+            .content {
+                padding: 1rem;
+                margin-top: 3rem;
+            }
+        }
+    /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }</style>
+</head>
+<body class="bg-white"><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+    <button class="mobile-menu-btn" id="mobileMenuBtn">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="flex flex-col md:flex-row">
+        <div class="sidebar w-full md:w-64 md:block" id="sidebar">
+            <div class="p-4 border-b border-gray-200">
+                <h5 class="font-bold text-lg text-gray-800">
+                    <i class="fas fa-chart-bar text-purple-600 mr-2"></i>目录
+                </h5>
+            </div>
+            <nav class="py-2">
+                <a href="#introduction" class="sidebar-link">
+                    <i class="fas fa-info-circle mr-2"></i>1. 简介
+                </a>
+                <a href="#metric-aggregations" class="sidebar-link">
+                    <i class="fas fa-calculator mr-2"></i>2. Metric聚合概述
+                </a>
+                <a href="#single-value-metrics" class="sidebar-link">
+                    <i class="fas fa-chart-line mr-2"></i>3. 单值指标聚合
+                </a>
+                <a href="#multi-value-metrics" class="sidebar-link">
+                    <i class="fas fa-chart-bar mr-2"></i>4. 多值指标聚合
+                </a>
+                <a href="#matrix-stats" class="sidebar-link">
+                    <i class="fas fa-table mr-2"></i>5. 矩阵统计聚合
+                </a>
+                <a href="#geo-metrics" class="sidebar-link">
+                    <i class="fas fa-map-marker-alt mr-2"></i>6. 地理位置指标聚合
+                </a>
+                <a href="#percentiles" class="sidebar-link">
+                    <i class="fas fa-percentage mr-2"></i>7. 百分位聚合详解
+                </a>
+                <a href="#cardinality" class="sidebar-link">
+                    <i class="fas fa-fingerprint mr-2"></i>8. 基数聚合详解
+                </a>
+                <a href="#scripted-metrics" class="sidebar-link">
+                    <i class="fas fa-code mr-2"></i>9. 脚本指标聚合
+                </a>
+                <a href="#pipeline-metrics" class="sidebar-link">
+                    <i class="fas fa-stream mr-2"></i>10. 管道指标聚合
+                </a>
+                <a href="#best-practices" class="sidebar-link">
+                    <i class="fas fa-lightbulb mr-2"></i>11. 最佳实践
+                </a>
+                <a href="#conclusion" class="sidebar-link">
+                    <i class="fas fa-flag-checkered mr-2"></i>12. 总结
+                </a>
+            </nav>
+        </div>
+        <div class="content flex-1">
+            <h1 id="introduction">
+                <i class="fas fa-chart-pie text-purple-600 mr-2"></i>Elasticsearch聚合查询之Metric聚合详解
+            </h1>
+            <p class="text-gray-600 text-lg mb-6">
+                Elasticsearch作为一个强大的分布式搜索和分析引擎，其聚合功能是数据分析的核心。本文将深入探讨Metric聚合，帮助您掌握如何使用这些聚合来计算各种统计指标。
+            </p>
+            <div class="note">
+                <p><strong><i class="fas fa-info-circle text-blue-600 mr-1"></i> 前置知识：</strong>本文假设您已经了解Elasticsearch的基本概念和查询语法。如果您是初学者，建议先阅读Elasticsearch的基础教程。</p>
+            </div>
+            <h2 id="metric-aggregations">
+                <i class="fas fa-calculator text-blue-600 mr-2"></i>2. Metric聚合概述
+            </h2>
+            <p>Metric聚合是Elasticsearch中用于计算数值型字段统计信息的聚合类型。它们可以计算诸如平均值、最大值、最小值等指标，是数据分析中不可或缺的工具。</p>
+            <div class="mb-6">
+                <div class="mermaid">
+graph TD
+    A[Metric聚合] --> B[单值指标聚合]
+    A --> C[多值指标聚合]
+    B --> D[avg - 平均值]
+    B --> E[min - 最小值]
+    B --> F[max - 最大值]
+    B --> G[sum - 求和]
+    B --> H[value_count - 计数]
+    B --> I[cardinality - 基数]
+    C --> J[stats - 基础统计]
+    C --> K[extended_stats - 扩展统计]
+    C --> L[percentiles - 百分位]
+    C --> M[percentile_ranks - 百分位等级]
+    C --> N[matrix_stats - 矩阵统计]
+    C --> O[geo_bounds - 地理边界]
+    C --> P[geo_centroid - 地理中心点]
+    C --> Q[top_metrics - 顶部指标]
+                </div>
+            </div>
+            <p>Metric聚合主要分为两类：</p>
+            <ul class="list-disc pl-6 mb-4">
+                <li><strong>单值指标聚合（Single-value metrics aggregations）</strong>：生成单个值的聚合，如avg、min、max等</li>
+                <li><strong>多值指标聚合（Multi-value metrics aggregations）</strong>：生成多个值的聚合，如stats、extended_stats、percentiles等</li>
+            </ul>
+            <p>基本语法结构：</p>
+            <pre><code>{
+  "aggs": {
+    "聚合名称": {
+      "聚合类型": {
+        "field": "字段名"
+      }
+    }
+  }
+}</code></pre>
+            <h2 id="single-value-metrics">
+                <i class="fas fa-chart-line text-blue-600 mr-2"></i>3. 单值指标聚合
+            </h2>
+            <p>单值指标聚合返回单个值作为聚合结果。这些聚合对于快速了解数据的基本特征非常有用。</p>
+            <h3 id="avg-aggregation">
+                <i class="fas fa-calculator text-pink-600 mr-2"></i>3.1 平均值聚合（avg）
+            </h3>
+            <p>计算指定字段的平均值。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "avg_price": {
+      "avg": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "avg_price": {
+      "value": 25.5
+    }
+  }
+}</code></pre>
+            <h3 id="min-aggregation">
+                <i class="fas fa-arrow-down text-pink-600 mr-2"></i>3.2 最小值聚合（min）
+            </h3>
+            <p>找出指定字段的最小值。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "min_price": {
+      "min": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="max-aggregation">
+                <i class="fas fa-arrow-up text-pink-600 mr-2"></i>3.3 最大值聚合（max）
+            </h3>
+            <p>找出指定字段的最大值。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "max_price": {
+      "max": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="sum-aggregation">
+                <i class="fas fa-plus text-pink-600 mr-2"></i>3.4 求和聚合（sum）
+            </h3>
+            <p>计算指定字段的总和。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "total_sales": {
+      "sum": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="value-count-aggregation">
+                <i class="fas fa-hashtag text-pink-600 mr-2"></i>3.5 计数聚合（value_count）
+            </h3>
+            <p>计算指定字段的值的数量（不去重）。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_count": {
+      "value_count": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="weighted-avg-aggregation">
+                <i class="fas fa-balance-scale text-pink-600 mr-2"></i>3.6 加权平均值聚合（weighted_avg）
+            </h3>
+            <p>计算加权平均值，可以为每个值指定不同的权重。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "weighted_price": {
+      "weighted_avg": {
+        "value": {
+          "field": "price"
+        },
+        "weight": {
+          "field": "quantity"
+        }
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="median-absolute-deviation">
+                <i class="fas fa-chart-area text-pink-600 mr-2"></i>3.7 中位数绝对偏差聚合（median_absolute_deviation）
+            </h3>
+            <p>计算数据集的中位数绝对偏差，这是一个稳健的离散度量。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_mad": {
+      "median_absolute_deviation": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <h2 id="multi-value-metrics">
+                <i class="fas fa-chart-bar text-blue-600 mr-2"></i>4. 多值指标聚合
+            </h2>
+            <p>多值指标聚合返回多个值作为聚合结果，提供更全面的统计信息。</p>
+            <h3 id="stats-aggregation">
+                <i class="fas fa-chart-pie text-pink-600 mr-2"></i>4.1 统计聚合（stats）
+            </h3>
+            <p>计算字段的基本统计信息，包括min、max、sum、avg和count。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_stats": {
+      "stats": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "price_stats": {
+      "count": 100,
+      "min": 10.0,
+      "max": 50.0,
+      "avg": 25.5,
+      "sum": 2550.0
+    }
+  }
+}</code></pre>
+            <h3 id="extended-stats-aggregation">
+                <i class="fas fa-chart-line text-pink-600 mr-2"></i>4.2 扩展统计聚合（extended_stats）
+            </h3>
+            <p>提供比stats更多的统计信息，包括标准差、方差、平方和等。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_extended_stats": {
+      "extended_stats": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "price_extended_stats": {
+      "count": 100,
+      "min": 10.0,
+      "max": 50.0,
+      "avg": 25.5,
+      "sum": 2550.0,
+      "sum_of_squares": 73625.0,
+      "variance": 166.25,
+      "std_deviation": 12.89,
+      "std_deviation_bounds": {
+        "upper": 51.28,
+        "lower": -0.28
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="boxplot-aggregation">
+                <i class="fas fa-box-open text-pink-600 mr-2"></i>4.3 箱线图聚合（boxplot）
+            </h3>
+            <p>生成箱线图所需的统计数据，包括最小值、第一四分位数、中位数、第三四分位数和最大值。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_boxplot": {
+      "boxplot": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "price_boxplot": {
+      "min": 10.0,
+      "max": 50.0,
+      "q1": 17.5,
+      "q2": 25.0,
+      "q3": 32.5
+    }
+  }
+}</code></pre>
+            <h3 id="string-stats-aggregation">
+                <i class="fas fa-font text-pink-600 mr-2"></i>4.4 字符串统计聚合（string_stats）
+            </h3>
+            <p>计算字符串字段的统计信息，如平均长度、最大长度等。</p>
+            <pre><code>GET /products/_search
+{
+  "size": 0,
+  "aggs": {
+    "description_stats": {
+      "string_stats": {
+        "field": "description"
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "description_stats": {
+      "count": 100,
+      "min_length": 10,
+      "max_length": 200,
+      "avg_length": 85.5,
+      "entropy": 3.72
+    }
+  }
+}</code></pre>
+            <h3 id="top-metrics-aggregation">
+                <i class="fas fa-trophy text-pink-600 mr-2"></i>4.5 顶部指标聚合（top_metrics）
+            </h3>
+            <p>返回按指定字段排序后的顶部文档的指标值。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "top_sales": {
+      "top_metrics": {
+        "metrics": [
+          {
+            "field": "price"
+          },
+          {
+            "field": "quantity"
+          }
+        ],
+        "sort": {
+          "date": "desc"
+        },
+        "size": 3
+      }
+    }
+  }
+}</code></pre>
+            <h2 id="matrix-stats">
+                <i class="fas fa-table text-blue-600 mr-2"></i>5. 矩阵统计聚合
+            </h2>
+            <p>矩阵统计聚合（matrix_stats）计算多个字段之间的相关性和协方差。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_quantity_stats": {
+      "matrix_stats": {
+        "fields": ["price", "quantity"]
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "price_quantity_stats": {
+      "doc_count": 100,
+      "fields": [
+        {
+          "name": "price",
+          "count": 100,
+          "mean": 25.5,
+          "variance": 166.25,
+          "skewness": 0.5,
+          "kurtosis": 2.6,
+          "covariance": {
+            "price": 166.25,
+            "quantity": 25.5
+          },
+          "correlation": {
+            "price": 1.0,
+            "quantity": 0.3
+          }
+        },
+        {
+          "name": "quantity",
+          "count": 100,
+          "mean": 5.0,
+          "variance": 8.5,
+          "skewness": 0.2,
+          "kurtosis": 2.1,
+          "covariance": {
+            "price": 25.5,
+            "quantity": 8.5
+          },
+          "correlation": {
+            "price": 0.3,
+            "quantity": 1.0
+          }
+        }
+      ]
+    }
+  }
+}</code></pre>
+            <div class="tip">
+                <p><strong><i class="fas fa-lightbulb text-green-600 mr-1"></i> 提示：</strong>矩阵统计聚合对于分析变量之间的关系非常有用，可以帮助发现数据中的相关性模式。</p>
+            </div>
+            <h2 id="geo-metrics">
+                <i class="fas fa-map-marker-alt text-blue-600 mr-2"></i>6. 地理位置指标聚合
+            </h2>
+            <p>Elasticsearch提供了专门用于地理位置数据分析的指标聚合。</p>
+            <h3 id="geo-bounds-aggregation">
+                <i class="fas fa-draw-polygon text-pink-600 mr-2"></i>6.1 地理边界聚合（geo_bounds）
+            </h3>
+            <p>计算包含所有geo_point值的边界框。</p>
+            <pre><code>GET /locations/_search
+{
+  "size": 0,
+  "aggs": {
+    "viewport": {
+      "geo_bounds": {
+        "field": "location",
+        "wrap_longitude": true
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "viewport": {
+      "bounds": {
+        "top_left": {
+          "lat": 41.12,
+          "lon": -71.34
+        },
+        "bottom_right": {
+          "lat": 40.01,
+          "lon": -70.30
+        }
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="geo-centroid-aggregation">
+                <i class="fas fa-crosshairs text-pink-600 mr-2"></i>6.2 地理中心点聚合（geo_centroid）
+            </h3>
+            <p>计算所有geo_point值的中心点。</p>
+            <pre><code>GET /locations/_search
+{
+  "size": 0,
+  "aggs": {
+    "center": {
+      "geo_centroid": {
+        "field": "location"
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "center": {
+      "location": {
+        "lat": 40.73,
+        "lon": -70.82
+      },
+      "count": 100
+    }
+  }
+}</code></pre>
+            <h2 id="percentiles">
+                <i class="fas fa-percentage text-blue-600 mr-2"></i>7. 百分位聚合详解
+            </h2>
+            <p>百分位聚合是一种重要的统计工具，用于了解数据分布情况。</p>
+            <h3 id="percentiles-aggregation">
+                <i class="fas fa-chart-line text-pink-600 mr-2"></i>7.1 百分位聚合（percentiles）
+            </h3>
+            <p>计算指定字段的百分位值。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_percentiles": {
+      "percentiles": {
+        "field": "price",
+        "percents": [1, 5, 25, 50, 75, 95, 99]
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "price_percentiles": {
+      "values": {
+        "1.0": 10.5,
+        "5.0": 12.0,
+        "25.0": 17.5,
+        "50.0": 25.0,
+        "75.0": 32.5,
+        "95.0": 45.0,
+        "99.0": 48.5
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="percentile-ranks-aggregation">
+                <i class="fas fa-sort-amount-up text-pink-600 mr-2"></i>7.2 百分位等级聚合（percentile_ranks）
+            </h3>
+            <p>计算指定值的百分位等级。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_percentile_ranks": {
+      "percentile_ranks": {
+        "field": "price",
+        "values": [15, 30, 45]
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "price_percentile_ranks": {
+      "values": {
+        "15.0": 20.0,
+        "30.0": 60.0,
+        "45.0": 95.0
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="percentiles-approximation">
+                <i class="fas fa-tachometer-alt text-pink-600 mr-2"></i>7.3 百分位近似算法
+            </h3>
+            <p>Elasticsearch使用TDigest算法来近似计算百分位值，可以通过compression参数控制精度。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_percentiles": {
+      "percentiles": {
+        "field": "price",
+        "percents": [1, 5, 25, 50, 75, 95, 99],
+        "tdigest": {
+          "compression": 200
+        }
+      }
+    }
+  }
+}</code></pre>
+                <div class="note">
+                <p><strong><i class="fas fa-info-circle text-blue-600 mr-1"></i> 说明：</strong>compression参数越大，准确性越高，但内存消耗也越大。默认值是100。</p>
+            </div>
+            <h3 id="percentiles-with-hdr">
+                <i class="fas fa-microscope text-pink-600 mr-2"></i>7.4 HDR直方图百分位
+            </h3>
+            <p>除了TDigest算法外，Elasticsearch还支持高动态范围（HDR）直方图算法。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "price_percentiles": {
+      "percentiles": {
+        "field": "price",
+        "percents": [1, 5, 25, 50, 75, 95, 99],
+        "hdr": {
+          "number_of_significant_value_digits": 3
+        }
+      }
+    }
+  }
+}</code></pre>
+            <div class="tip">
+                <p><strong><i class="fas fa-lightbulb text-green-600 mr-1"></i> 提示：</strong>HDR算法在处理具有已知范围和精度要求的数据时表现很好，但可能不适合所有情况。</p>
+            </div>
+            <h2 id="cardinality">
+                <i class="fas fa-fingerprint text-blue-600 mr-2"></i>8. 基数聚合详解
+            </h2>
+            <p>基数聚合用于计算字段的唯一值数量，类似于SQL中的COUNT(DISTINCT)。它使用HyperLogLog++算法来提供近似但高效的计算。</p>
+            <h3 id="cardinality-aggregation">
+                <i class="fas fa-users text-pink-600 mr-2"></i>8.1 基本用法
+            </h3>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "unique_customers": {
+      "cardinality": {
+        "field": "customer_id"
+      }
+    }
+  }
+}</code></pre>
+            <p>响应示例：</p>
+            <pre><code>{
+  ...
+  "aggregations": {
+    "unique_customers": {
+      "value": 85
+    }
+  }
+}</code></pre>
+            <h3 id="cardinality-precision">
+                <i class="fas fa-bullseye text-pink-600 mr-2"></i>8.2 精度控制
+            </h3>
+            <p>可以通过precision_threshold参数控制基数聚合的精度。</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "unique_customers": {
+      "cardinality": {
+        "field": "customer_id",
+        "precision_threshold": 100
+      }
+    }
+  }
+}</code></pre>
+            <div class="note">
+                <p><strong><i class="fas fa-info-circle text-blue-600 mr-1"></i> 说明：</strong>precision_threshold参数决定了用于计算的内存。当唯一值数量少于此阈值时，计算结果是精确的；超过此阈值，结果是近似的。最大值为40000，默认值为3000。</p>
+            </div>
+            <h3 id="cardinality-use-cases">
+                <i class="fas fa-clipboard-list text-pink-600 mr-2"></i>8.3 实际应用场景
+            </h3>
+            <p>基数聚合的典型应用场景包括：</p>
+            <ul class="list-disc pl-6 mb-4">
+                <li>计算网站的独立访问者数量</li>
+                <li>分析不同产品的购买用户数</li>
+                <li>监控系统中的唯一错误类型数量</li>
+                <li>计算每天的活跃用户数</li>
+            </ul>
+            <pre><code>GET /logs/_search
+{
+  "size": 0,
+  "aggs": {
+    "daily_active_users": {
+      "date_histogram": {
+        "field": "timestamp",
+        "calendar_interval": "day"
+      },
+      "aggs": {
+        "unique_users": {
+          "cardinality": {
+            "field": "user_id"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+            <h2 id="scripted-metrics">
+                <i class="fas fa-code text-blue-600 mr-2"></i>9. 脚本指标聚合
+            </h2>
+            <p>脚本指标聚合允许使用自定义脚本来计算复杂的指标。这提供了极大的灵活性，可以实现标准聚合无法满足的需求。</p>
+            <h3 id="scripted-metric-aggregation">
+                <i class="fas fa-cogs text-pink-600 mr-2"></i>9.1 基本结构
+            </h3>
+            <p>脚本指标聚合包含四个阶段的脚本：</p>
+            <ol class="list-decimal pl-6 mb-4">
+                <li><strong>init_script</strong>：初始化脚本，在聚合开始前执行</li>
+                <li><strong>map_script</strong>：对每个文档执行的脚本</li>
+                <li><strong>combine_script</strong>：在每个分片上执行，组合map_script的结果</li>
+                <li><strong>reduce_script</strong>：汇总所有分片的结果</li>
+            </ol>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "sales_script": {
+      "scripted_metric": {
+        "init_script": "state.transactions = []",
+        "map_script": "state.transactions.add(doc.price.value * doc.quantity.value)",
+        "combine_script": "double sum = 0; for (t in state.transactions) { sum += t } return sum",
+        "reduce_script": "double sum = 0; for (a in states) { sum += a } return sum"
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="scripted-metric-example">
+                <i class="fas fa-file-code text-pink-600 mr-2"></i>9.2 实际示例
+            </h3>
+            <p>以下示例计算每个订单中价格最高的3个商品的总和：</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "top3_sales": {
+      "scripted_metric": {
+        "init_script": "state.prices = []",
+        "map_script": "state.prices.add(doc.price.value)",
+        "combine_script": """
+          state.prices.sort(Comparator.reverseOrder());
+          double sum = 0;
+          int i = 0;
+          for (price in state.prices) {
+            if (i >= 3) break;
+            sum += price;
+            i++;
+          }
+          return sum;
+        """,
+        "reduce_script": "double sum = 0; for (a in states) { sum += a } return sum"
+      }
+    }
+  }
+}</code></pre>
+            <div class="warning">
+                <p><strong><i class="fas fa-exclamation-triangle text-yellow-600 mr-1"></i> 警告：</strong>脚本指标聚合功能强大但可能影响性能。对于复杂计算或大数据集，请谨慎使用。</p>
+            </div>
+            <h3 id="scripted-metric-params">
+                <i class="fas fa-sliders-h text-pink-600 mr-2"></i>9.3 使用参数
+            </h3>
+            <p>您可以通过params参数向脚本传递参数，使脚本更加灵活：</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "sales_script": {
+      "scripted_metric": {
+        "init_script": "state.transactions = []",
+        "map_script": "state.transactions.add(doc.price.value * doc.quantity.value * params.tax_multiplier)",
+        "combine_script": "double sum = 0; for (t in state.transactions) { sum += t } return sum",
+        "reduce_script": "double sum = 0; for (a in states) { sum += a } return sum",
+        "params": {
+          "tax_multiplier": 1.1
+        }
+      }
+    }
+  }
+}</code></pre>
+            <h2 id="pipeline-metrics">
+                <i class="fas fa-stream text-blue-600 mr-2"></i>10. 管道指标聚合
+            </h2>
+            <p>管道聚合对其他聚合的输出进行操作，而不是直接处理文档。它们可以用于进一步处理聚合结果。</p>
+            <div class="mb-6">
+                <div class="mermaid">
+graph LR
+    A[文档] --> B[普通聚合]
+    B --> C[管道聚合]
+    C --> D[最终结果]
+                </div>
+            </div>
+            <h3 id="pipeline-types">
+                <i class="fas fa-project-diagram text-pink-600 mr-2"></i>10.1 管道聚合类型
+            </h3>
+            <p>管道聚合有多种类型，包括：</p>
+            <ul class="list-disc pl-6 mb-4">
+                <li><strong>Parent</strong>：对父聚合的结果进行操作，如derivative、moving_avg</li>
+                <li><strong>Sibling</strong>：创建与其他聚合同级的结果，如cumulative_sum、stats_bucket</li>
+            </ul>
+            <h3 id="moving-average">
+                <i class="fas fa-chart-line text-pink-600 mr-2"></i>10.2 移动平均聚合
+            </h3>
+            <p>计算时间序列数据的移动平均值：</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "sales_per_month": {
+      "date_histogram": {
+        "field": "date",
+        "calendar_interval": "month"
+      },
+      "aggs": {
+        "sales": {
+          "sum": {
+            "field": "price"
+          }
+        },
+        "sales_movavg": {
+          "moving_avg": {
+            "buckets_path": "sales",
+            "window": 3,
+            "model": "simple"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="derivative-aggregation">
+                <i class="fas fa-exchange-alt text-pink-600 mr-2"></i>10.3 导数聚合
+            </h3>
+            <p>计算度量的变化率：</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "sales_per_month": {
+      "date_histogram": {
+        "field": "date",
+        "calendar_interval": "month"
+      },
+      "aggs": {
+        "sales": {
+          "sum": {
+            "field": "price"
+          }
+        },
+        "sales_change": {
+          "derivative": {
+            "buckets_path": "sales"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="bucket-selector">
+                <i class="fas fa-filter text-pink-600 mr-2"></i>10.4 桶选择器
+            </h3>
+            <p>根据条件过滤桶：</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "sales_per_month": {
+      "date_histogram": {
+        "field": "date",
+        "calendar_interval": "month"
+      },
+      "aggs": {
+        "sales": {
+          "sum": {
+            "field": "price"
+          }
+        },
+        "high_sales": {
+          "bucket_selector": {
+            "buckets_path": {
+              "salesValue": "sales"
+            },
+            "script": "params.salesValue > 10000"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="bucket-script">
+                <i class="fas fa-calculator text-pink-600 mr-2"></i>10.5 桶脚本
+            </h3>
+            <p>在桶之间使用脚本进行计算：</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "sales_per_month": {
+      "date_histogram": {
+        "field": "date",
+        "calendar_interval": "month"
+      },
+      "aggs": {
+        "sales": {
+          "sum": {
+            "field": "price"
+          }
+        },
+        "costs": {
+          "sum": {
+            "field": "cost"
+          }
+        },
+        "profit_margin": {
+          "bucket_script": {
+            "buckets_path": {
+              "sales": "sales",
+              "costs": "costs"
+            },
+            "script": "(params.sales - params.costs) / params.sales * 100"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+            <h2 id="best-practices">
+                <i class="fas fa-lightbulb text-blue-600 mr-2"></i>11. 最佳实践
+            </h2>
+            <h3 id="performance-tips">
+                <i class="fas fa-tachometer-alt text-pink-600 mr-2"></i>11.1 性能优化
+            </h3>
+            <ul class="list-disc pl-6 mb-4">
+                <li><strong>使用docvalue_fields</strong>：确保聚合字段启用了docvalues以提高性能</li>
+                <li><strong>限制搜索结果</strong>：当只需要聚合结果时，将size设为0</li>
+                <li><strong>使用过滤器</strong>：在聚合前使用过滤器减少处理的文档数量</li>
+                <li><strong>避免脚本滥用</strong>：尽量使用内置聚合而不是脚本聚合</li>
+                <li><strong>控制基数</strong>：对高基数字段进行聚合时要小心，考虑使用terms聚合的size参数</li>
+            </ul>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "query": {
+    "range": {
+      "date": {
+        "gte": "now-1y"
+      }
+    }
+  },
+  "aggs": {
+    "sales_stats": {
+      "stats": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="combining-aggregations">
+                <i class="fas fa-object-group text-pink-600 mr-2"></i>11.2 组合聚合
+            </h3>
+            <p>组合多种聚合类型可以提供更全面的数据分析：</p>
+            <pre><code>GET /sales/_search
+{
+  "size": 0,
+  "aggs": {
+    "sales_per_category": {
+      "terms": {
+        "field": "category",
+        "size": 10
+      },
+      "aggs": {
+        "monthly_sales": {
+          "date_histogram": {
+            "field": "date",
+            "calendar_interval": "month"
+          },
+          "aggs": {
+            "sales": {
+              "sum": {
+                "field": "price"
+              }
+            },
+            "sales_trend": {
+              "moving_avg": {
+                "buckets_path": "sales",
+                "window": 3
+              }
+            }
+          }
+        },
+        "category_stats": {
+          "stats": {
+            "field": "price"
+          }
+        },
+        "top_products": {
+          "top_hits": {
+            "size": 3,
+            "sort": [
+              {
+                "price": {
+                  "order": "desc"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+            <h3 id="monitoring-aggregations">
+                <i class="fas fa-heartbeat text-pink-600 mr-2"></i>11.3 监控和分析
+            </h3>
+            <p>使用指标聚合进行系统监控和运营分析：</p>
+            <pre><code>GET /logs/_search
+{
+  "size": 0,
+  "aggs": {
+    "errors_over_time": {
+      "date_histogram": {
+        "field": "timestamp",
+        "calendar_interval": "hour"
+      },
+      "aggs": {
+        "error_types": {
+          "terms": {
+            "field": "error_code",
+            "size": 10
+          },
+          "aggs": {
+            "response_time_stats": {
+              "stats": {
+                "field": "response_time"
+              }
+            },
+            "error_rate_trend": {
+              "moving_avg": {
+                "buckets_path": "_count",
+                "window": 6
+              }
+            }
+          }
+        },
+        "unique_users_affected": {
+          "cardinality": {
+            "field": "user_id"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+            <div class="tip">
+                <p><strong><i class="fas fa-lightbulb text-green-600 mr-1"></i> 提示：</strong>定期审查和优化聚合查询，尤其是在数据量增长时。监控聚合查询的执行时间，使用相关索引模式和shard策略优化性能。</p>
+            </div>
+            <h2 id="conclusion">
+                <i class="fas fa-flag-checkered text-blue-600 mr-2"></i>12. 总结
+            </h2>
+            <p>Elasticsearch的Metric聚合提供了强大的数据分析能力，从简单的统计计算到复杂的脚本操作和管道聚合，满足了各种数据分析需求。</p>
+            <p>本文详细介绍了各种Metric聚合类型及其应用场景：</p>
+            <ul class="list-disc pl-6 mb-4">
+                <li>单值指标聚合（avg、min、max等）提供基本统计信息</li>
+                <li>多值指标聚合（stats、extended_stats等）提供更全面的统计分析</li>
+                <li>百分位聚合帮助理解数据分布</li>
+                <li>基数聚合计算唯一值数量</li>
+                <li>脚本指标聚合支持自定义计算逻辑</li>
+                <li>管道聚合进一步处理聚合结果</li>
+            </ul>
+            <p>通过合理组合这些聚合，可以构建复杂的分析系统，从海量数据中提取有价值的信息，支持业务决策和系统监控。</p>
+            <p>在使用Metric聚合时，要注意性能优化和资源管理，特别是对于大数据量和高基数字段的情况。合理使用过滤器、限制结果大小，选择合适的聚合类型，将帮助您获得最佳的Elasticsearch性能和分析体验。</p>
+            <div class="note mb-8">
+                <p><strong><i class="fas fa-book text-blue-600 mr-1"></i> 延伸阅读：</strong></p>
+                <ul class="list-disc pl-6">
+                    <li>Elasticsearch官方文档中的<a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics.html" target="_blank" class="text-blue-600 hover:underline">Metrics Aggregations</a>部分</li>
+                    <li>了解<a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket.html" target="_blank" class="text-blue-600 hover:underline">Bucket Aggregations</a>如何与Metric聚合结合使用</li>
+                    <li>探索更多<a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-pipeline.html" target="_blank" class="text-blue-600 hover:underline">Pipeline Aggregations</a>的高级用法</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化Mermaid图表
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'neutral',
+                flowchart: { useMaxWidth: true }
+            });
+            
+            // 移动端菜单切换
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const sidebar = document.getElementById('sidebar');
+            
+            mobileMenuBtn.addEventListener('click', function() {
+                sidebar.classList.toggle('show');
+            });
+            
+            // 侧边栏链接点击后自动关闭（移动端）
+            const sidebarLinks = document.querySelectorAll('.sidebar-link');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth < 768) {
+                        sidebar.classList.remove('show');
+                    }
+                    
+                    // 移除所有活动链接样式
+                    sidebarLinks.forEach(l => l.classList.remove('active'));
+                    // 添加活动链接样式
+                    this.classList.add('active');
+                });
+            });
+            
+            // 滚动监听，高亮当前部分
+            window.addEventListener('scroll', function() {
+                const sections = document.querySelectorAll('h1[id], h2[id]');
+                let current = '';
+                
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (window.pageYOffset >= sectionTop - 100) {
+                        current = section.getAttribute('id');
+                    }
+                });
+                
+                sidebarLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + current) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

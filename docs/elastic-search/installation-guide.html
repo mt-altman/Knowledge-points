@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElasticSearch和Kibana安装指南</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Inter:wght@400;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: 'Noto Sans SC', 'Inter', sans-serif; }
+        code { font-family: 'Fira Code', monospace; }
+        .bg-gradient { background: linear-gradient(120deg, #2563eb, #4f46e5); }
+        .code-block { background-color: #1e293b; color: #e2e8f0; border-radius: 0.5rem; }
+        @media print { 
+            .no-print { display: none !important; }
+            .print-break { page-break-before: always; }
+        }
+    /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }</style>
+</head>
+<body class="bg-gray-50 text-gray-800"><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+    <header class="bg-gradient text-white py-6 px-4 shadow-lg">
+        <div class="container mx-auto">
+            <h1 class="text-3xl font-bold mb-2">ElasticSearch和Kibana安装指南</h1>
+            <div class="inline-block bg-blue-800 bg-opacity-50 rounded-lg px-3 py-1 text-sm">
+                <span class="font-semibold">复杂度评估：</span>
+                <span class="font-bold">中级</span> - 需要基本的服务器操作和配置知识
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- 1. 术语定义 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-4 border-b pb-2">术语定义</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold mb-3 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        ElasticSearch (弹性搜索)
+                    </h3>
+                    <p class="mb-3">ElasticSearch是一个基于Lucene的分布式、RESTful风格的搜索和分析引擎，能够解决越来越多的用例。作为Elastic Stack的核心，它集中存储您的数据，以便您发现期望的数据并发现意外情况。</p>
+                    <p><strong>发音：</strong> /ɪˈlæstɪk sɜːrtʃ/</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold mb-3 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        Kibana (基巴纳)
+                    </h3>
+                    <p class="mb-3">Kibana是一个免费且开放的用户界面，让您能够对ElasticSearch数据进行可视化，并在Elastic Stack中导航。它提供了数据探索、可视化和仪表板功能。</p>
+                    <p><strong>发音：</strong> /kɪˈbɑːnə/</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 实现细节与优化 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-4 border-b pb-2">安装流程</h2>
+            
+            <div class="mb-6">
+                <h3 class="text-xl font-bold mb-3">安装架构</h3>
+                <div class="mermaid bg-white p-4 rounded-lg shadow-md">
+                    graph TD
+                    A[准备环境] --> B[下载ElasticSearch]
+                    B --> C[配置ElasticSearch]
+                    C --> D[启动ElasticSearch]
+                    D --> E[下载Kibana]
+                    E --> F[配置Kibana]
+                    F --> G[启动Kibana]
+                    G --> H[验证安装]
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <h3 class="text-xl font-bold mb-3">环境要求</h3>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>Java 8或更高版本（ElasticSearch 7.x需要Java 11+）</li>
+                    <li>足够的内存（建议至少4GB）</li>
+                    <li>足够的磁盘空间</li>
+                    <li>操作系统：Linux、Windows或macOS</li>
+                </ul>
+                <div class="code-block p-4 overflow-x-auto">
+                    <code>
+# 检查Java版本<br>
+java -version<br><br>
+# 检查系统资源<br>
+free -m          # 查看内存<br>
+df -h            # 查看磁盘空间
+                    </code>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-bold mb-3">ElasticSearch安装步骤</h3>
+                <div class="code-block p-4 overflow-x-auto mb-4">
+                    <code>
+# 下载ElasticSearch<br>
+wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.15.0-linux-x86_64.tar.gz<br><br>
+# 解压文件<br>
+tar -xzf elasticsearch-7.15.0-linux-x86_64.tar.gz<br><br>
+# 进入目录<br>
+cd elasticsearch-7.15.0/
+                    </code>
+                </div>
+                
+                <h4 class="font-bold mb-2">配置文件修改 (config/elasticsearch.yml)</h4>
+                <div class="code-block p-4 overflow-x-auto">
+                    <code>
+# 集群名称<br>
+cluster.name: my-application<br><br>
+# 节点名称<br>
+node.name: node-1<br><br>
+# 网络设置<br>
+network.host: 0.0.0.0<br>
+http.port: 9200<br><br>
+# 发现设置<br>
+discovery.seed_hosts: ["127.0.0.1"]<br>
+cluster.initial_master_nodes: ["node-1"]
+                    </code>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 应用场景 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-4 border-b pb-2">安装场景</h2>
+            
+            <div class="grid md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold mb-3">单节点开发环境</h3>
+                    <p class="mb-3">适合本地开发和测试，资源需求较低。</p>
+                    <div class="code-block p-4 overflow-x-auto">
+                        <code>
+# 启动单节点ElasticSearch<br>
+./bin/elasticsearch<br><br>
+# 启动Kibana<br>
+./bin/kibana
+                        </code>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold mb-3">生产环境集群</h3>
+                    <p class="mb-3">适合高可用性和大规模数据处理的生产环境。</p>
+                    <div class="code-block p-4 overflow-x-auto">
+                        <code>
+# 配置多节点集群<br>
+# 在elasticsearch.yml中:<br>
+node.master: true|false<br>
+node.data: true|false<br>
+node.ingest: true|false<br><br>
+# 使用systemd管理服务<br>
+sudo systemctl start elasticsearch.service
+                        </code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-bold mb-3">Kibana安装步骤</h3>
+                <div class="code-block p-4 overflow-x-auto mb-4">
+                    <code>
+# 下载Kibana<br>
+wget https://artifacts.elastic.co/downloads/kibana/kibana-7.15.0-linux-x86_64.tar.gz<br><br>
+# 解压文件<br>
+tar -xzf kibana-7.15.0-linux-x86_64.tar.gz<br><br>
+# 进入目录<br>
+cd kibana-7.15.0-linux-x86_64/
+                    </code>
+                </div>
+                
+                <h4 class="font-bold mb-2">配置文件修改 (config/kibana.yml)</h4>
+                <div class="code-block p-4 overflow-x-auto">
+                    <code>
+# 服务器主机<br>
+server.host: "0.0.0.0"<br><br>
+# 服务器端口<br>
+server.port: 5601<br><br>
+# ElasticSearch URL<br>
+elasticsearch.hosts: ["http://localhost:9200"]
+                    </code>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 比较分析 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-4 border-b pb-2">安装方式比较</h2>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white rounded-lg shadow-md">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="py-3 px-4 text-left">安装方式</th>
+                            <th class="py-3 px-4 text-left">优点</th>
+                            <th class="py-3 px-4 text-left">缺点</th>
+                            <th class="py-3 px-4 text-left">适用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-t">
+                            <td class="py-3 px-4 font-medium">压缩包安装</td>
+                            <td class="py-3 px-4">
+                                <ul class="list-disc pl-5">
+                                    <li>灵活性高</li>
+                                    <li>可自定义配置</li>
+                                    <li>适合任何操作系统</li>
+                                </ul>
+                            </td>
+                            <td class="py-3 px-4">
+                                <ul class="list-disc pl-5">
+                                    <li>需手动管理服务</li>
+                                    <li>升级较复杂</li>
+                                </ul>
+                            </td>
+                            <td class="py-3 px-4">开发环境、测试环境</td>
+                        </tr>
+                        <tr class="border-t">
+                            <td class="py-3 px-4 font-medium">包管理器安装</td>
+                            <td class="py-3 px-4">
+                                <ul class="list-disc pl-5">
+                                    <li>自动管理服务</li>
+                                    <li>简化升级流程</li>
+                                    <li>自动处理依赖</li>
+                                </ul>
+                            </td>
+                            <td class="py-3 px-4">
+                                <ul class="list-disc pl-5">
+                                    <li>配置灵活性较低</li>
+                                    <li>受限于包管理器</li>
+                                </ul>
+                            </td>
+                            <td class="py-3 px-4">生产环境</td>
+                        </tr>
+                        <tr class="border-t">
+                            <td class="py-3 px-4 font-medium">Docker安装</td>
+                            <td class="py-3 px-4">
+                                <ul class="list-disc pl-5">
+                                    <li>环境隔离</li>
+                                    <li>快速部署</li>
+                                    <li>易于扩展</li>
+                                </ul>
+                            </td>
+                            <td class="py-3 px-4">
+                                <ul class="list-disc pl-5">
+                                    <li>需要Docker知识</li>
+                                    <li>性能开销</li>
+                                </ul>
+                            </td>
+                            <td class="py-3 px-4">容器化环境、CI/CD流程</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 5. 总结 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-4 border-b pb-2">安装总结</h2>
+            
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <h3 class="text-xl font-bold mb-3">核心步骤回顾</h3>
+                <div class="mermaid bg-gray-50 p-4 rounded-lg">
+                    mindmap
+                      root((ElasticSearch和Kibana安装))
+                        准备工作
+                          检查Java环境
+                          确认系统资源
+                          选择安装方式
+                        ElasticSearch安装
+                          下载并解压
+                          修改配置文件
+                          启动服务
+                          验证运行状态
+                        Kibana安装
+                          下载并解压
+                          配置ElasticSearch连接
+                          启动服务
+                          访问Web界面
+                        安装后配置
+                          安全设置
+                          插件安装
+                          系统调优
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-bold mb-3">常见问题与解决方案</h3>
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="font-bold">问题：ElasticSearch无法启动</h4>
+                        <p>解决方案：检查Java版本、内存设置和配置文件语法。查看日志文件获取详细错误信息。</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold">问题：Kibana无法连接到ElasticSearch</h4>
+                        <p>解决方案：确认ElasticSearch正在运行，检查Kibana配置中的ElasticSearch URL是否正确。</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold">问题：内存不足错误</h4>
+                        <p>解决方案：调整JVM堆大小，在config/jvm.options文件中修改-Xms和-Xmx参数。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. 参考资料 -->
+        <section>
+            <h2 class="text-2xl font-bold mb-4 border-b pb-2">参考资料</h2>
+            
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-bold mb-3">官方文档与资源</h3>
+                <ul class="space-y-2">
+                    <li><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html" class="text-blue-600 hover:underline">ElasticSearch官方文档</a> - 完整的安装和配置指南</li>
+                    <li><a href="https://www.elastic.co/guide/en/kibana/current/index.html" class="text-blue-600 hover:underline">Kibana官方文档</a> - Kibana安装和使用指南</li>
+                    <li><a href="https://www.elastic.co/cn/elasticsearch/service" class="text-blue-600 hover:underline">Elastic Cloud</a> - 托管ElasticSearch服务</li>
+                    <li><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html" class="text-blue-600 hover:underline">Docker安装指南</a> - 使用Docker安装ElasticSearch</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-6 px-4">
+        <div class="container mx-auto text-center">
+            <p>© 2023 ElasticSearch和Kibana安装指南 | 技术文档</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化Mermaid图表
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'neutral',
+                securityLevel: 'loose',
+                fontFamily: 'Noto Sans SC, Inter, sans-serif'
+            });
+            
+            // 为代码块添加复制功能
+            document.querySelectorAll('.code-block').forEach(block => {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs';
+                copyBtn.textContent = '复制';
+                copyBtn.onclick = function() {
+                    const code = block.querySelector('code').innerText;
+                    navigator.clipboard.writeText(code).then(() => {
+                        copyBtn.textContent = '已复制!';
+                        setTimeout(() => {
+                            copyBtn.textContent = '复制';
+                        }, 2000);
+                    });
+                };
+                
+                // 设置相对定位以便放置复制按钮
+                block.style.position = 'relative';
+                block.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>
