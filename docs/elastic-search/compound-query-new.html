@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elasticsearch聚合查询详解：Bucket、Metric和Pipeline聚合</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true });
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'cf-blue': '#007BC7',
+                        'cf-dark-blue': '#005A8B',
+                        'cf-light-blue': '#E5F2F9',
+                        'cf-accent': '#FF8000',
+                        'cf-dark': '#333333',
+                        'cf-light': '#F5F5F7',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .sidebar {
+            transition: all 0.3s;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+        pre {
+            background-color: #f8f8f8;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        .heading-link {
+            text-decoration: none;
+            color: inherit;
+        }
+        .heading-link:hover {
+            text-decoration: underline;
+            color: #007BC7;
+        }
+        blockquote {
+            border-left: 4px solid #007BC7;
+            padding-left: 1rem;
+            color: #666;
+            margin: 1rem 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+            text-align: left;
+        }
+        table th {
+            background-color: #f5f5f7;
+        }
+        .mermaid {
+            margin: 2rem 0;
+        }
+    /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }</style>
+</head>
+<body class="bg-cf-light text-cf-dark"><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+    <!-- Mobile Toggle -->
+    <div id="mobileToggle" class="fixed top-4 left-4 z-50 md:hidden bg-cf-blue text-white p-2 rounded-md shadow-md">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="sidebar fixed md:relative w-64 bg-white shadow-md h-screen overflow-y-auto md:translate-x-0 z-40">
+            <div class="p-4 bg-cf-blue text-white">
+                <h2 class="text-xl font-bold">📊 Elasticsearch聚合查询</h2>
+            </div>
+            <nav class="p-4">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="#introduction" class="block hover:text-cf-blue">🌟 介绍</a>
+                    </li>
+                    <li>
+                        <a href="#bucket-aggregations" class="block hover:text-cf-blue font-semibold">🪣 Bucket聚合详解</a>
+                        <ul class="pl-4 mt-2 space-y-1">
+                            <li><a href="#what-is-bucket-agg" class="block hover:text-cf-blue">什么是Bucket聚合</a></li>
+                            <li><a href="#bucket-agg-types" class="block hover:text-cf-blue">常用Bucket聚合类型</a></li>
+                            <li><a href="#bucket-agg-examples" class="block hover:text-cf-blue">使用场景和示例</a></li>
+                            <li><a href="#bucket-agg-practices" class="block hover:text-cf-blue">最佳实践</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a href="#metric-aggregations" class="block hover:text-cf-blue font-semibold">📏 Metric聚合详解</a>
+                        <ul class="pl-4 mt-2 space-y-1">
+                            <li><a href="#what-is-metric-agg" class="block hover:text-cf-blue">什么是Metric聚合</a></li>
+                            <li><a href="#metric-agg-types" class="block hover:text-cf-blue">常用Metric聚合类型</a></li>
+                            <li><a href="#metric-agg-examples" class="block hover:text-cf-blue">使用场景和示例</a></li>
+                            <li><a href="#metric-agg-practices" class="block hover:text-cf-blue">最佳实践</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a href="#pipeline-aggregations" class="block hover:text-cf-blue font-semibold">🔄 Pipeline聚合详解</a>
+                        <ul class="pl-4 mt-2 space-y-1">
+                            <li><a href="#what-is-pipeline-agg" class="block hover:text-cf-blue">什么是Pipeline聚合</a></li>
+                            <li><a href="#pipeline-agg-types" class="block hover:text-cf-blue">常用Pipeline聚合类型</a></li>
+                            <li><a href="#pipeline-agg-examples" class="block hover:text-cf-blue">使用场景和示例</a></li>
+                            <li><a href="#pipeline-agg-practices" class="block hover:text-cf-blue">最佳实践</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a href="#combined-aggregations" class="block hover:text-cf-blue">🔄 组合使用聚合查询</a>
+                    </li>
+                    <li>
+                        <a href="#performance" class="block hover:text-cf-blue">⚡ 性能优化</a>
+                    </li>
+                    <li>
+                        <a href="#conclusion" class="block hover:text-cf-blue">📝 总结和实践建议</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-4 md:p-8 md:ml-64">
+            <div class="max-w-4xl mx-auto">
+                <header class="mb-12">
+                    <h1 class="text-4xl font-bold text-cf-dark-blue mb-4">Elasticsearch聚合查询详解</h1>
+                    <p class="text-xl text-gray-600">深入理解Bucket聚合、Metric聚合和Pipeline聚合</p>
+                </header>
+
+                <!-- Introduction Section -->
+                <section id="introduction" class="mb-12">
+                    <h2 class="text-2xl font-bold mb-4 text-cf-dark-blue">🌟 介绍</h2>
+                    <p class="mb-4">Elasticsearch聚合功能允许我们对搜索结果进行实时分析和数据统计。它可以帮助用户了解数据的分布情况、计算统计指标和发现数据趋势。聚合查询是Elasticsearch强大的数据分析工具，可以在大规模数据集上执行复杂的分析操作。</p>
+                  
+                    <div class="mb-6">
+                        <h3 class="text-xl font-semibold mb-2">Elasticsearch聚合类型</h3>
+                        <div class="mermaid">
+                            graph TB
+                                A[Elasticsearch聚合类型] --> B[Bucket聚合]
+                                A --> C[Metric聚合]
+                                A --> D[Pipeline聚合]
+                                B -->|分组文档| B1[Terms聚合]
+                                B -->|分组文档| B2[Range聚合]
+                                B -->|分组文档| B3[Date Histogram聚合]
+                                B -->|分组文档| B4[其他Bucket类型]
+                                C -->|计算指标| C1[Avg聚合]
+                                C -->|计算指标| C2[Sum聚合]
+                                C -->|计算指标| C3[Stats聚合]
+                                C -->|计算指标| C4[其他Metric类型]
+                                D -->|处理聚合结果| D1[Bucket脚本]
+                                D -->|处理聚合结果| D2[Bucket选择器]
+                                D -->|处理聚合结果| D3[Cumulative Sum]
+                                D -->|处理聚合结果| D4[其他Pipeline类型]
+                        </div>
+                    </div>
+
+                    <p class="mb-4">Elasticsearch聚合查询主要分为三大类：</p>
+                    <ul class="list-disc pl-6 mb-6 space-y-2">
+                        <li><strong>Bucket聚合</strong>：创建文档的分组（桶），每个桶包含一组文档</li>
+                        <li><strong>Metric聚合</strong>：计算文档集合的统计指标，如平均值、最大值、最小值等</li>
+                        <li><strong>Pipeline聚合</strong>：对其他聚合的结果进行进一步处理，而不是直接处理文档</li>
+                    </ul>
+
+                    <p>本文将深入介绍这三种聚合类型的工作原理、使用场景和最佳实践。无论您是构建分析仪表板、生成报告还是提取业务洞察，理解聚合查询对于充分利用Elasticsearch的数据分析能力至关重要。</p>
+                </section>
+
+                <!-- Bucket Aggregations Section -->
+                <section id="bucket-aggregations" class="mb-12">
+                    <h2 class="text-2xl font-bold mb-4 text-cf-dark-blue">🪣 Bucket聚合详解</h2>
+                  
+                    <div id="what-is-bucket-agg" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">什么是Bucket聚合</h3>
+                        <p class="mb-4">Bucket聚合是Elasticsearch中最基础的聚合类型之一，它根据特定条件或字段值将文档分组到不同的"桶"（buckets）中。每个桶代表一组满足特定条件的文档集合，这些桶可以用于分析数据分布或进行深度数据分析。</p>
+
+                        <div class="bg-cf-light-blue p-4 rounded-lg mb-6">
+                            <p class="font-semibold">Bucket聚合的核心概念：</p>
+                            <ul class="list-disc pl-6 mt-2">
+                                <li>每个桶都包含一组匹配特定条件的文档</li>
+                                <li>桶可以嵌套，形成层次结构</li>
+                                <li>桶内可以进一步应用Metric聚合来计算统计指标</li>
+                                <li>不同类型的Bucket聚合提供不同的分组逻辑</li>
+                            </ul>
+                        </div>
+
+                        <div class="mermaid">
+                            graph TD
+                                A[文档集合] --> B{Bucket聚合}
+                                B -->|条件1| C[桶1]
+                                B -->|条件2| D[桶2]
+                                B -->|条件3| E[桶3]
+                                C --> F[文档1, 文档2, ...]
+                                D --> G[文档3, 文档4, ...]
+                                E --> H[文档5, 文档6, ...]
+                                C --> I[可嵌套其他聚合]
+                                D --> J[可嵌套其他聚合]
+                                E --> K[可嵌套其他聚合]
+                        </div>
+                    </div>
+
+                    <div id="bucket-agg-types" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">常用Bucket聚合类型</h3>
+                        <p class="mb-4">Elasticsearch提供了多种类型的Bucket聚合，每种类型适用于不同的分组场景：</p>
+
+                        <table class="w-full border-collapse mb-6">
+                            <thead>
+                                <tr class="bg-cf-light-blue">
+                                    <th class="p-2 border">聚合类型</th>
+                                    <th class="p-2 border">描述</th>
+                                    <th class="p-2 border">典型用例</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-2 border font-semibold">Terms</td>
+                                    <td class="p-2 border">根据字段值创建桶，每个唯一值对应一个桶</td>
+                                    <td class="p-2 border">按类别、标签、状态等分组</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">Range</td>
+                                    <td class="p-2 border">根据数值范围创建桶</td>
+                                    <td class="p-2 border">价格区间、年龄段分布</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">Date Range</td>
+                                    <td class="p-2 border">根据日期范围创建桶</td>
+                                    <td class="p-2 border">时间段分析</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">Date Histogram</td>
+                                    <td class="p-2 border">根据日期间隔创建桶，形成时间序列</td>
+                                    <td class="p-2 border">时间趋势分析、日/周/月数据</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">Histogram</td>
+                                    <td class="p-2 border">根据数值间隔创建桶</td>
+                                    <td class="p-2 border">数值分布分析</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">Filters</td>
+                                    <td class="p-2 border">根据一个或多个过滤条件创建桶</td>
+                                    <td class="p-2 border">复杂条件分组</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">Nested</td>
+                                    <td class="p-2 border">处理嵌套文档的聚合</td>
+                                    <td class="p-2 border">嵌套字段分析</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">Geo Distance</td>
+                                    <td class="p-2 border">根据与中心点的距离创建桶</td>
+                                    <td class="p-2 border">地理位置距离分析</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="bucket-agg-examples" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">使用场景和示例</h3>
+                      
+                        <h4 class="text-lg font-medium mb-2">1. Terms聚合示例</h4>
+                        <p class="mb-3">以电子商务网站为例，我们可以使用Terms聚合来分析产品分类的销售情况：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "category_count": {
+      "terms": {
+        "field": "category.keyword",
+        "size": 10
+      }
+    }
+  }
+}</code></pre>
+                        <p class="mb-4">这个查询将返回产品分类及每个分类中的文档数量（产品数量）。</p>
+
+                        <h4 class="text-lg font-medium mb-2">2. Date Histogram聚合示例</h4>
+                        <p class="mb-3">分析过去30天内每天的订单量：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "orders_over_time": {
+      "date_histogram": {
+        "field": "order_date",
+        "calendar_interval": "day",
+        "format": "yyyy-MM-dd"
+      }
+    }
+  }
+}</code></pre>
+                        <p class="mb-4">这个聚合查询将订单按天分组，帮助了解订单量的时间趋势。</p>
+
+                        <h4 class="text-lg font-medium mb-2">3. Range聚合示例</h4>
+                        <p class="mb-3">分析不同价格区间的产品分布：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "price_ranges": {
+      "range": {
+        "field": "price",
+        "ranges": [
+          { "to": 50 },
+          { "from": 50, "to": 100 },
+          { "from": 100, "to": 200 },
+          { "from": 200 }
+        ]
+      }
+    }
+  }
+}</code></pre>
+                        <p class="mb-4">这个查询将产品按价格区间分组，帮助分析产品价格分布。</p>
+
+                        <h4 class="text-lg font-medium mb-2">4. 嵌套使用Bucket聚合</h4>
+                        <p class="mb-3">分析每个产品类别中不同价格区间的分布：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "categories": {
+      "terms": {
+        "field": "category.keyword",
+        "size": 10
+      },
+      "aggs": {
+        "price_ranges": {
+          "range": {
+            "field": "price",
+            "ranges": [
+              { "to": 50 },
+              { "from": 50, "to": 100 },
+              { "from": 100, "to": 200 },
+              { "from": 200 }
+            ]
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+                        <p>这个查询展示了Bucket聚合的嵌套使用，先按产品类别分组，然后在每个类别内再按价格区间分组。</p>
+                    </div>
+
+                    <div id="bucket-agg-practices" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">最佳实践</h3>
+                        <ul class="list-disc pl-6 space-y-2">
+                            <li><strong>控制返回桶数量</strong>：使用<code>size</code>参数限制返回的桶数量，避免返回过多数据导致性能问题。</li>
+                            <li><strong>优化字段类型</strong>：对于Terms聚合，使用<code>keyword</code>类型而非<code>text</code>类型字段进行聚合会有更好的性能。</li>
+                            <li><strong>使用过滤器减小数据集</strong>：在进行聚合前先使用<code>query</code>过滤数据，减少需要处理的文档数量。</li>
+                            <li><strong>考虑分片大小和数量</strong>：对于大规模聚合，分片大小和数量会影响聚合性能。</li>
+                            <li><strong>使用缓存</strong>：对于频繁执行的聚合查询，考虑使用缓存机制减轻集群负担。</li>
+                            <li><strong>合理使用子聚合</strong>：嵌套的聚合会增加计算复杂度，应谨慎使用深层嵌套。</li>
+                            <li><strong>使用适当的排序选项</strong>：例如，在Terms聚合中可以使用<code>order</code>参数按文档数量或自定义度量排序。</li>
+                        </ul>
+
+                        <div class="bg-cf-light-blue p-4 rounded-lg mt-4">
+                            <p class="font-semibold mb-2">⚠️ 注意事项：</p>
+                            <ul class="list-disc pl-6">
+                                <li>Terms聚合在处理高基数字段（唯一值很多的字段）时可能会导致内存压力增大</li>
+                                <li>Date Histogram聚合的时间间隔设置会影响结果精度和性能</li>
+                                <li>全局聚合（global aggregation）可以让聚合基于所有文档，而不仅仅是查询结果</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Metric Aggregations Section -->
+                <section id="metric-aggregations" class="mb-12">
+                    <h2 class="text-2xl font-bold mb-4 text-cf-dark-blue">📏 Metric聚合详解</h2>
+                  
+                    <div id="what-is-metric-agg" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">什么是Metric聚合</h3>
+                        <p class="mb-4">Metric聚合主要用于计算一组文档的统计指标，它们可以应用于文档集合或者Bucket聚合创建的桶内。与Bucket聚合不同，Metric聚合不会创建桶，而是计算数值类统计信息。</p>
+
+                        <div class="bg-cf-light-blue p-4 rounded-lg mb-6">
+                            <p class="font-semibold">Metric聚合的核心特点：</p>
+                            <ul class="list-disc pl-6 mt-2">
+                                <li>计算数值类型字段的统计指标</li>
+                                <li>可以应用于整个文档集合或Bucket聚合创建的桶内</li>
+                                <li>输出数值结果而不是桶</li>
+                                <li>多种聚合类型支持不同的统计计算</li>
+                            </ul>
+                        </div>
+
+                        <div class="mermaid">
+                            graph TD
+                                A[文档集合] --> B{Metric聚合}
+                                B --> C[单值聚合]
+                                B --> D[多值聚合]
+                                C --> C1[min, max, avg, sum, ...]
+                                D --> D1[stats, extended_stats, ...]
+                                C1 --> E[单个数值结果]
+                                D1 --> F[多个数值结果]
+                        </div>
+                    </div>
+
+                    <div id="metric-agg-types" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">常用Metric聚合类型</h3>
+                        <p class="mb-4">Elasticsearch提供了丰富的Metric聚合类型，可以分为单值(Single-value)和多值(Multi-value)两类：</p>
+
+                        <h4 class="text-lg font-medium mb-2">单值Metric聚合</h4>
+                        <table class="w-full border-collapse mb-6">
+                            <thead>
+                                <tr class="bg-cf-light-blue">
+                                    <th class="p-2 border">聚合类型</th>
+                                    <th class="p-2 border">描述</th>
+                                    <th class="p-2 border">常见用途</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-2 border font-semibold">min</td>
+                                    <td class="p-2 border">返回字段的最小值</td>
+                                    <td class="p-2 border">找出最低价格、最早日期等</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">max</td>
+                                    <td class="p-2 border">返回字段的最大值</td>
+                                    <td class="p-2 border">找出最高价格、最晚日期等</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">avg</td>
+                                    <td class="p-2 border">计算字段的平均值</td>
+                                    <td class="p-2 border">计算平均价格、评分等</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">sum</td>
+                                    <td class="p-2 border">计算字段值之和</td>
+                                    <td class="p-2 border">计算总销售额、总数量等</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">value_count</td>
+                                    <td class="p-2 border">计算含有该字段的文档数量</td>
+                                    <td class="p-2 border">计算有效字段计数</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">cardinality</td>
+                                    <td class="p-2 border">计算字段的唯一值数量（近似值）</td>
+                                    <td class="p-2 border">计算不同用户数、不同产品数等</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">median_absolute_deviation</td>
+                                    <td class="p-2 border">计算绝对中位差</td>
+                                    <td class="p-2 border">分析数据离散程度和异常值</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h4 class="text-lg font-medium mb-2">多值Metric聚合</h4>
+                        <table class="w-full border-collapse mb-6">
+                            <thead>
+                                <tr class="bg-cf-light-blue">
+                                    <th class="p-2 border">聚合类型</th>
+                                    <th class="p-2 border">描述</th>
+                                    <th class="p-2 border">常见用途</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-2 border font-semibold">stats</td>
+                                    <td class="p-2 border">返回count、min、max、avg和sum五个值</td>
+                                    <td class="p-2 border">获取基本统计信息</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">extended_stats</td>
+                                    <td class="p-2 border">在stats基础上增加标准差、方差等统计值</td>
+                                    <td class="p-2 border">更详细的统计分析</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">percentiles</td>
+                                    <td class="p-2 border">计算指定百分位的值</td>
+                                    <td class="p-2 border">性能分析、响应时间分布等</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">percentile_ranks</td>
+                                    <td class="p-2 border">计算值在数据集中的百分位排名</td>
+                                    <td class="p-2 border">分析数据在整体中的位置</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">matrix_stats</td>
+                                    <td class="p-2 border">提供多变量分析统计结果</td>
+                                    <td class="p-2 border">高级统计分析、相关性计算</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">geo_bounds</td>
+                                    <td class="p-2 border">计算包含所有地理点的边界</td>
+                                    <td class="p-2 border">地理数据分析，确定边界范围</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">geo_centroid</td>
+                                    <td class="p-2 border">计算所有地理点的中心点</td>
+                                    <td class="p-2 border">计算地理中心位置</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="metric-agg-examples" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">使用场景和示例</h3>
+                      
+                        <h4 class="text-lg font-medium mb-2">1. 基本Metric聚合示例</h4>
+                        <p class="mb-3">计算所有产品的平均价格、最高价格和最低价格：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "avg_price": {
+      "avg": {
+        "field": "price"
+      }
+    },
+    "max_price": {
+      "max": {
+        "field": "price"
+      }
+    },
+    "min_price": {
+      "min": {
+        "field": "price"
+      }
+    }
+  }
+}</code></pre>
+                        <p class="mb-4">这个查询同时使用了多个单值Metric聚合，计算价格的不同统计指标。</p>
+
+                        <h4 class="text-lg font-medium mb-2">2. 组合使用Bucket和Metric聚合</h4>
+                        <p class="mb-3">按产品类别分组，并计算每个类别的销售统计信息：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "by_category": {
+      "terms": {
+        "field": "category.keyword",
+        "size": 10
+      },
+      "aggs": {
+        "sales_stats": {
+          "stats": {
+            "field": "sales_amount"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+                        <p class="mb-4">这个示例先使用Terms聚合按产品类别分组，然后在每个类别内使用stats聚合计算销售额的统计指标。</p>
+
+                        <h4 class="text-lg font-medium mb-2">3. 百分位数聚合示例</h4>
+                        <p class="mb-3">分析API响应时间的分布情况：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "response_percentiles": {
+      "percentiles": {
+        "field": "response_time",
+        "percents": [50, 75, 90, 95, 99]
+      }
+    }
+  }
+}</code></pre>
+                        <p class="mb-4">这个查询使用percentiles聚合计算不同百分位的响应时间，帮助分析性能和用户体验。</p>
+
+                        <h4 class="text-lg font-medium mb-2">4. 基数聚合示例</h4>
+                        <p class="mb-3">计算每天访问网站的唯一用户数：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "daily_visits": {
+      "date_histogram": {
+        "field": "timestamp",
+        "calendar_interval": "day",
+        "format": "yyyy-MM-dd"
+      },
+      "aggs": {
+        "unique_users": {
+          "cardinality": {
+            "field": "user_id"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+                        <p>这个示例结合使用了date_histogram和cardinality聚合，按天分组并计算每天的唯一用户数量。</p>
+                    </div>
+
+                    <div id="metric-agg-practices" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">最佳实践</h3>
+                        <ul class="list-disc pl-6 space-y-2">
+                            <li><strong>选择合适的字段类型</strong>：确保用于计算的字段是合适的数值类型（integer、float、scaled_float等）。</li>
+                            <li><strong>理解精度与性能的平衡</strong>：百分位数（percentiles）和基数（cardinality）聚合默认是近似计算，提高精度会影响性能。</li>
+                            <li><strong>处理缺失值</strong>：使用<code>missing</code>参数指定当字段缺失时使用的默认值。</li>
+                            <li><strong>使用脚本扩展功能</strong>：对于复杂计算，可以使用脚本来处理字段或计算自定义值。</li>
+                            <li><strong>使用适当的聚合粒度</strong>：根据具体分析需求选择合适的统计粒度，避免过度聚合。</li>
+                            <li><strong>缓存常用聚合结果</strong>：对于频繁使用的复杂聚合，考虑缓存结果以提高性能。</li>
+                        </ul>
+
+                        <div class="bg-cf-light-blue p-4 rounded-lg mt-4">
+                            <p class="font-semibold mb-2">📊 Metric聚合性能优化提示：</p>
+                            <ul class="list-disc pl-6">
+                                <li>对于大数据集，cardinality聚合的precision_threshold参数影响内存使用和精度</li>
+                                <li>percentiles聚合的compression参数可以调整精度和性能平衡</li>
+                                <li>使用filter或query限制参与聚合的文档数量可以显著提高性能</li>
+                                <li>对于scripts_fields，尽量使用Painless脚本以获得更好的性能</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Pipeline Aggregations Section -->
+                <section id="pipeline-aggregations" class="mb-12">
+                    <h2 class="text-2xl font-bold mb-4 text-cf-dark-blue">🔄 Pipeline聚合详解</h2>
+                  
+                    <div id="what-is-pipeline-agg" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">什么是Pipeline聚合</h3>
+                        <p class="mb-4">Pipeline聚合是一种特殊类型的聚合，它不像Bucket和Metric聚合那样直接处理文档，而是处理其他聚合的输出结果。Pipeline聚合可以创建一系列聚合处理管道，对聚合结果进行进一步加工和转换。</p>
+
+                        <div class="bg-cf-light-blue p-4 rounded-lg mb-6">
+                            <p class="font-semibold">Pipeline聚合的核心特点：</p>
+                            <ul class="list-disc pl-6 mt-2">
+                                <li>处理其他聚合的结果，而非直接处理文档</li>
+                                <li>可以链式处理，形成数据处理管道</li>
+                                <li>分为父级(Parent)和兄弟级(Sibling)两大类</li>
+                                <li>可以执行复杂的数学计算和统计分析</li>
+                            </ul>
+                        </div>
+
+                        <div class="mermaid">
+                            graph LR
+                                A[聚合A结果] --> B{Pipeline聚合}
+                                C[聚合B结果] --> B
+                                B --> D[新的计算结果]
+                                D --> E{另一个Pipeline聚合}
+                                E --> F[最终结果]
+                        </div>
+
+                        <p class="mt-4 mb-4">Pipeline聚合主要分为两大类：</p>
+                        <ol class="list-decimal pl-6 space-y-2">
+                            <li><strong>父级(Parent) Pipeline聚合</strong>：对父聚合的桶内容进行处理，输出结果添加到现有桶中。</li>
+                            <li><strong>兄弟级(Sibling) Pipeline聚合</strong>：使用与自身处于同级的聚合结果，并生成新的聚合输出。</li>
+                        </ol>
+                    </div>
+
+                    <div id="pipeline-agg-types" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">常用Pipeline聚合类型</h3>
+
+                        <h4 class="text-lg font-medium mb-2">父级Pipeline聚合</h4>
+                        <table class="w-full border-collapse mb-6">
+                            <thead>
+                                <tr class="bg-cf-light-blue">
+                                    <th class="p-2 border">聚合类型</th>
+                                    <th class="p-2 border">描述</th>
+                                    <th class="p-2 border">典型用例</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-2 border font-semibold">avg_bucket</td>
+                                    <td class="p-2 border">计算指定桶路径中的平均值</td>
+                                    <td class="p-2 border">计算多个桶的平均指标</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">sum_bucket</td>
+                                    <td class="p-2 border">计算指定桶路径中值的总和</td>
+                                    <td class="p-2 border">汇总多个桶的指标</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">min_bucket</td>
+                                    <td class="p-2 border">找出指定桶路径中的最小值</td>
+                                    <td class="p-2 border">找出表现最差的时间段/类别</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">max_bucket</td>
+                                    <td class="p-2 border">找出指定桶路径中的最大值</td>
+                                    <td class="p-2 border">找出表现最好的时间段/类别</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">stats_bucket</td>
+                                    <td class="p-2 border">计算桶路径中值的统计信息</td>
+                                    <td class="p-2 border">桶值的综合统计分析</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">percentiles_bucket</td>
+                                    <td class="p-2 border">计算桶路径中值的百分位数</td>
+                                    <td class="p-2 border">分析桶值的分布情况</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">moving_avg</td>
+                                    <td class="p-2 border">计算移动平均值</td>
+                                    <td class="p-2 border">平滑时间序列数据</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">derivative</td>
+                                    <td class="p-2 border">计算数值的导数（变化率）</td>
+                                    <td class="p-2 border">分析数据变化趋势</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h4 class="text-lg font-medium mb-2">兄弟级Pipeline聚合</h4>
+                        <table class="w-full border-collapse mb-6">
+                            <thead>
+                                <tr class="bg-cf-light-blue">
+                                    <th class="p-2 border">聚合类型</th>
+                                    <th class="p-2 border">描述</th>
+                                    <th class="p-2 border">典型用例</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-2 border font-semibold">cumulative_sum</td>
+                                    <td class="p-2 border">计算累积和</td>
+                                    <td class="p-2 border">计算累计销售额、用户增长等</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">bucket_script</td>
+                                    <td class="p-2 border">使用脚本对多个聚合结果进行计算</td>
+                                    <td class="p-2 border">复杂的自定义计算</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">bucket_selector</td>
+                                    <td class="p-2 border">基于条件过滤桶</td>
+                                    <td class="p-2 border">筛选符合特定条件的桶</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">bucket_sort</td>
+                                    <td class="p-2 border">对桶进行排序</td>
+                                    <td class="p-2 border">自定义桶的排序和分页</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border font-semibold">serial_diff</td>
+                                    <td class="p-2 border">计算序列差分</td>
+                                    <td class="p-2 border">分析时间序列的波动</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="pipeline-agg-examples" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">使用场景和示例</h3>
+                      
+                        <h4 class="text-lg font-medium mb-2">1. 累积和（Cumulative Sum）示例</h4>
+                        <p class="mb-3">计算每月累计销售额：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "sales_per_month": {
+      "date_histogram": {
+        "field": "order_date",
+        "calendar_interval": "month",
+        "format": "yyyy-MM"
+      },
+      "aggs": {
+        "monthly_sales": {
+          "sum": {
+            "field": "sales_amount"
+          }
+        },
+        "cumulative_sales": {
+          "cumulative_sum": {
+            "buckets_path": "monthly_sales"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+                        <p class="mb-4">这个查询先按月分组并计算每月销售额，然后使用cumulative_sum聚合计算累计销售额。</p>
+
+                        <h4 class="text-lg font-medium mb-2">2. 移动平均（Moving Average）示例</h4>
+                        <p class="mb-3">计算网站流量的7天移动平均值：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "daily_visits": {
+      "date_histogram": {
+        "field": "timestamp",
+        "calendar_interval": "day",
+        "format": "yyyy-MM-dd"
+      },
+      "aggs": {
+        "visit_count": {
+          "sum": {
+            "field": "visits"
+          }
+        },
+        "visit_moving_avg": {
+          "moving_avg": {
+            "buckets_path": "visit_count",
+            "window": 7,
+            "model": "simple"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+                        <p class="mb-4">这个示例先计算每天的访问量，然后使用moving_avg聚合计算7天的简单移动平均值，帮助平滑数据波动。</p>
+
+                        <h4 class="text-lg font-medium mb-2">3. 桶选择器（Bucket Selector）示例</h4>
+                        <p class="mb-3">筛选出销售额超过1000的产品类别：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "categories": {
+      "terms": {
+        "field": "category.keyword",
+        "size": 100
+      },
+      "aggs": {
+        "total_sales": {
+          "sum": {
+            "field": "sales_amount"
+          }
+        },
+        "sales_bucket_filter": {
+          "bucket_selector": {
+            "buckets_path": {
+              "salesAmount": "total_sales"
+            },
+            "script": "params.salesAmount > 1000"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+                        <p class="mb-4">这个查询先按产品类别分组并计算每个类别的总销售额，然后使用bucket_selector只保留销售额超过1000的类别。</p>
+
+                        <h4 class="text-lg font-medium mb-2">4. 桶脚本（Bucket Script）示例</h4>
+                        <p class="mb-3">计算每个产品的利润率：</p>
+                        <pre><code>{
+  "size": 0,
+  "aggs": {
+    "products": {
+      "terms": {
+        "field": "product_id",
+        "size": 100
+      },
+      "aggs": {
+        "total_revenue": {
+          "sum": {
+            "field": "revenue"
+          }
+        },
+        "total_cost": {
+          "sum": {
+            "field": "cost"
+          }
+        },
+        "profit_margin": {
+          "bucket_script": {
+            "buckets_path": {
+              "revenue": "total_revenue",
+              "cost": "total_cost"
+            },
+            "script": "(params.revenue - params.cost) / params.revenue * 100"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+                        <p>这个示例使用bucket_script聚合计算每个产品的利润率，通过脚本对收入和成本进行计算。</p>
+                    </div>
+
+                    <div id="pipeline-agg-practices" class="mb-8">
+                        <h3 class="text-xl font-semibold mb-3">最佳实践</h3>
+                        <ul class="list-disc pl-6 space-y-2">
+                            <li><strong>正确设置buckets_path</strong>：确保指定的路径正确引用了目标聚合，路径格式通常为<code>聚合名称</code>或<code>父聚合>子聚合</code>。</li>
+                            <li><strong>处理缺失值</strong>：使用<code>gap_policy</code>参数指定如何处理路径中缺失的值，可选值为<code>skip</code>（默认，跳过）或<code>insert_zeros</code>（插入零值）。</li>
+                            <li><strong>选择合适的移动平均模型</strong>：移动平均聚合支持多种模型（simple、linear、ewma等），根据数据特性选择合适的模型。</li>
+                            <li><strong>优化脚本性能</strong>：对于bucket_script聚合，尽量使用简单高效的脚本，避免复杂计算。</li>
+                            <li><strong>控制聚合深度</strong>：过深的Pipeline聚合嵌套可能导致复杂度增加和性能下降。</li>
+                            <li><strong>排序和分页</strong>：使用bucket_sort聚合对结果进行排序和分页，而不是在客户端处理。</li>
+                        </ul>
+
+                        <div class="bg-cf-light-blue p-4 rounded-lg mt-4">
+                            <p class="font-semibold mb-2">⚠️ Pipeline聚合注意事项：</p>
+                            <ul class="list-disc pl-6">
+                                <li>Pipeline聚合只能引用已经计算的聚合结果，不能引用尚未计算的聚合</li>
+                                <li>父级Pipeline聚合通常需要与直方图类聚合配合使用，因为这些聚合需要有序的桶</li>
+                                <li>使用moving_avg聚合时，确保有足够的数据点以满足窗口大小的要求</li>
+                                <li>bucket_selector聚合会过滤掉不符合条件的桶，这可能影响其他计算结果</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Combined Aggregations Section -->
+                <section id="combined-aggregations" class="mb-12">
+                    <h2 class="text-2xl font-bold mb-4 text-cf-dark-blue">🔄 组合使用聚合查询</h2>
+                    <p class="mb-4">Elasticsearch的强大之处在于可以组合使用不同类型的聚合查询，构建复杂的分析流程。通过嵌套和组合聚合，可以从多个维度分析数据，提取深层次的业务洞察。</p>
+
+                    <h3 class="text-xl font-semibold mb-3">常见组合模式</h3>
+                    <ul class="list-disc pl-6 mb-6 space-y-2">
+                        <li><strong>Bucket + Metric</strong>：最常见的组合，先分组后计算统计值</li>
+                        <li><strong>多层Bucket嵌套</strong>：创建多维度分析，如按地区、产品类别和时间的三维分组</li>
+                        <li><strong>Bucket + Metric + Pipeline</strong>：先分组，再计算，最后对结果进行进一步处理</li>
+                        <li><strong>Filters + 其他聚合</strong>：使用多个过滤条件创建不同的数据子集，然后对每个子集应用相同的分析逻辑</li>
+                    </ul>
+
+                    <h3 class="text-xl font-semibold mb-3">复杂查询示例</h3>
+                    <p class="mb-3">下面是一个综合使用三种聚合类型的复杂查询示例：按月份和商品类别分析销售情况，并计算销售增长率。</p>
+                    <pre><code>{
+  "size": 0,
+  "aggs": {
+    "sales_over_time": {
+      "date_histogram": {
+        "field": "order_date",
+        "calendar_interval": "month",
+        "format": "yyyy-MM"
+      },
+      "aggs": {
+        "by_category": {
+          "terms": {
+            "field": "category.keyword",
+            "size": 5
+          },
+          "aggs": {
+            "monthly_sales": {
+              "sum": {
+                "field": "sales_amount"
+              }
+            },
+            "avg_order_value": {
+              "avg": {
+                "field": "order_value"
+              }
+            }
+          }
+        },
+        "total_monthly_sales": {
+          "sum": {
+            "field": "sales_amount"
+          }
+        },
+        "sales_growth": {
+          "derivative": {
+            "buckets_path": "total_monthly_sales"
+          }
+        },
+        "cumulative_sales": {
+          "cumulative_sum": {
+            "buckets_path": "total_monthly_sales"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+                  
+                    <p class="mt-4 mb-4">这个复杂查询包含：</p>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li>一个date_histogram聚合按月份分组</li>
+                        <li>在每个月内使用terms聚合按商品类别进一步分组</li>
+                        <li>对每个类别计算monthly_sales和avg_order_value两个指标</li>
+                        <li>计算每个月的总销售额（total_monthly_sales）</li>
+                        <li>使用derivative聚合计算月环比增长（sales_growth）</li>
+                        <li>使用cumulative_sum聚合计算累计销售额（cumulative_sales）</li>
+                    </ol>
+
+                    <div class="bg-cf-light-blue p-4 rounded-lg mt-6">
+                        <p class="font-semibold mb-2">💡 组合聚合的优势：</p>
+                        <ul class="list-disc pl-6">
+                            <li>一次请求获取多维度数据，减少网络开销</li>
+                            <li>服务端完成复杂计算，减轻客户端负担</li>
+                            <li>利用Elasticsearch的分布式计算能力，高效处理大规模数据</li>
+                            <li>提取深层次业务洞察，支持决策制定</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Performance Section -->
+                <section id="performance" class="mb-12">
+                    <h2 class="text-2xl font-bold mb-4 text-cf-dark-blue">⚡ 性能优化</h2>
+                    <p class="mb-4">聚合查询可能会消耗大量系统资源，尤其是在处理大规模数据时。以下是一些优化聚合查询性能的关键策略：</p>
+
+                    <h3 class="text-xl font-semibold mb-3">聚合查询的性能注意事项</h3>
+                    <ul class="list-disc pl-6 mb-6 space-y-2">
+                        <li><strong>内存使用</strong>：聚合操作在内存中执行，大规模聚合可能导致内存压力</li>
+                        <li><strong>分片数量</strong>：每个分片都需要执行聚合，分片过多会增加协调开销</li>
+                        <li><strong>聚合深度</strong>：嵌套的聚合层级越深，计算复杂度越高</li>
+                        <li><strong>高基数字段</strong>：对具有大量唯一值的字段进行Terms聚合会消耗大量资源</li>
+                        <li><strong>排序操作</strong>：基于指标的排序比基于文档计数的排序更昂贵</li>
+                        <li><strong>脚本计算</strong>：使用脚本进行聚合会增加CPU负载</li>
+                    </ul>
+
+                    <h3 class="text-xl font-semibold mb-3">优化技巧</h3>
+                    <table class="w-full border-collapse mb-6">
+                        <thead>
+                            <tr class="bg-cf-light-blue">
+                                <th class="p-2 border">优化策略</th>
+                                <th class="p-2 border">描述</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="p-2 border font-semibold">过滤数据</td>
+                                <td class="p-2 border">在聚合前使用query或filter筛选数据，减少参与聚合的文档数量</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border font-semibold">限制桶数量</td>
+                                <td class="p-2 border">使用size参数限制Terms聚合返回的桶数量</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border font-semibold">使用doc_values</td>
+                                <td class="p-2 border">确保用于聚合的字段启用了doc_values，这是专为聚合和排序优化的列式存储格式</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border font-semibold">避免脚本或最小化脚本复杂度</td>
+                                <td class="p-2 border">尽量使用字段值直接聚合，必要时使用运行时字段(runtime fields)代替复杂脚本</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border font-semibold">使用近似聚合</td>
+                                <td class="p-2 border">对于cardinality和percentiles等聚合，接受近似结果以获得更好的性能</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border font-semibold">分片策略优化</td>
+                                <td class="p-2 border">合理设计分片数量和大小，避免过多小分片</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border font-semibold">使用索引排序</td>
+                                <td class="p-2 border">对频繁用于Range或Histogram聚合的字段使用索引排序</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border font-semibold">缓存聚合结果</td>
+                                <td class="p-2 border">对于经常执行的聚合查询，考虑在应用层缓存结果</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border font-semibold">分时段执行</td>
+                                <td class="p-2 border">对于大型数据集，考虑按时间范围拆分查询，分批执行</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="bg-cf-light-blue p-4 rounded-lg">
+                        <p class="font-semibold mb-2">📈 性能监控指标：</p>
+                        <ul class="list-disc pl-6">
+                            <li>使用Elasticsearch的_nodes/stats API监控聚合查询的内存使用情况</li>
+                            <li>关注query_total、query_time_in_millis等指标来评估查询性能</li>
+                            <li>使用Search Profiler工具分析复杂聚合查询的执行详情</li>
+                            <li>监控JVM堆内存使用情况，避免因大量聚合导致内存压力</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Conclusion Section -->
+                <section id="conclusion" class="mb-8">
+                    <h2 class="text-2xl font-bold mb-4 text-cf-dark-blue">📝 总结和实践建议</h2>
+                    <p class="mb-4">Elasticsearch的聚合功能为数据分析提供了强大而灵活的工具。通过本文的详细介绍，我们深入了解了三种主要聚合类型及其使用方法：</p>
+
+                    <ul class="list-disc pl-6 mb-6 space-y-2">
+                        <li><strong>Bucket聚合</strong>帮助我们对数据进行分类和分组，创建数据的逻辑分区</li>
+                        <li><strong>Metric聚合</strong>提供了丰富的统计功能，帮助我们计算各种数值指标</li>
+                        <li><strong>Pipeline聚合</strong>允许我们对聚合结果进行进一步处理，实现更复杂的数据分析</li>
+                    </ul>
+
+                    <h3 class="text-xl font-semibold mb-3">实践建议</h3>
+                    <ol class="list-decimal pl-6 space-y-2 mb-6">
+                        <li><strong>从简单开始</strong>：先掌握基本的聚合类型，然后逐步尝试更复杂的组合</li>
+                        <li><strong>理解数据模型</strong>：聚合查询的效率与数据模型设计密切相关，确保字段类型和映射适合聚合操作</li>
+                        <li><strong>权衡精度和性能</strong>：对于大数据集，考虑使用近似计算来提高性能</li>
+                        <li><strong>迭代优化</strong>：通过监控和分析，持续优化聚合查询性能</li>
+                        <li><strong>考虑用户体验</strong>：为复杂聚合查询设置合理的超时时间，避免长时间阻塞</li>
+                        <li><strong>预计算和缓存</strong>：对于频繁使用的复杂聚合，考虑预计算结果或实现缓存机制</li>
+                    </ol>
+
+                    <p class="font-semibold">掌握Elasticsearch的聚合功能，可以帮助您：</p>
+                    <ul class="list-disc pl-6 mb-4">
+                        <li>构建丰富的数据分析仪表板</li>
+                        <li>发现数据中的模式和趋势</li>
+                        <li>提取有价值的业务洞察</li>
+                        <li>实现实时数据监控系统</li>
+                        <li>支持数据驱动的决策制定</li>
+                    </ul>
+
+                    <p>随着对聚合功能的深入理解和熟练应用，您将能够充分发挥Elasticsearch作为分析引擎的强大潜力，为业务创造更多价值。</p>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile sidebar toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mobileToggle = document.getElementById('mobileToggle');
+          
+            mobileToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('open');
+            });
+          
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function(e) {
+                if (window.innerWidth < 768 && 
+                    !sidebar.contains(e.target) && 
+                    e.target !== mobileToggle && 
+                    !mobileToggle.contains(e.target)) {
+                    sidebar.classList.remove('open');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
