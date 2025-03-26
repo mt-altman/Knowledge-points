@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elasticsearch索引管理与索引模板详解</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #007C89;
+            --secondary-color: #00A5BE;
+            --dark-color: #212529;
+            --light-color: #F8F9FA;
+            --accent-color: #FF5C35;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", sans-serif;
+            color: var(--dark-color);
+        }
+        .sidebar {
+            background-color: #f5f5f7;
+            border-right: 1px solid #e0e0e0;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            overflow-y: auto;
+        }
+        .content {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .toc-link {
+            color: #333;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            padding-left: 1rem;
+        }
+        .toc-link:hover, .toc-link.active {
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+            background-color: rgba(0,124,137,0.05);
+        }
+        .toc-sub {
+            margin-left: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .mermaid {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9em;
+        }
+        pre code {
+            display: block;
+            padding: 1rem;
+            overflow-x: auto;
+            background-color: #f8f8f8;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+        blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #555;
+            font-style: italic;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                z-index: 50;
+                width: 80%;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .menu-toggle {
+                display: block !important;
+            }
+        }
+    /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }</style>
+</head>
+<body class="bg-gray-50"><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+    <div class="flex flex-col md:flex-row">
+        <!-- Mobile Menu Toggle -->
+        <button class="menu-toggle fixed top-4 left-4 z-50 bg-white p-2 rounded-md shadow-md md:hidden" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+            <i class="fas fa-bars text-gray-700"></i>
+        </button>
+      
+        <!-- Sidebar -->
+        <aside class="sidebar w-full md:w-64 p-4">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-800">📑 目录</h2>
+                <button class="md:hidden" onclick="document.querySelector('.sidebar').classList.remove('open')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <nav class="toc">
+                <div class="mb-2">
+                    <a href="#intro" class="toc-link block py-2 rounded hover:bg-gray-100">📌 引言</a>
+                </div>
+              
+                <div class="mb-4">
+                    <div class="font-bold mb-2 text-gray-600">第一部分：索引管理详解</div>
+                    <a href="#index-concept" class="toc-link block py-2 rounded">1. 索引概念与架构</a>
+                    <a href="#index-lifecycle" class="toc-link block py-2 rounded">2. 索引的生命周期</a>
+                    <a href="#index-settings" class="toc-link block py-2 rounded">3. 索引设置详解</a>
+                    <a href="#index-api" class="toc-link block py-2 rounded">4. 索引管理API</a>
+                    <a href="#index-alias" class="toc-link block py-2 rounded">5. 索引别名管理</a>
+                    <a href="#index-best-practices" class="toc-link block py-2 rounded">6. 索引管理最佳实践</a>
+                </div>
+              
+                <div class="mb-4">
+                    <div class="font-bold mb-2 text-gray-600">第二部分：索引模板详解</div>
+                    <a href="#template-concept" class="toc-link block py-2 rounded">1. 索引模板概念</a>
+                    <a href="#template-types" class="toc-link block py-2 rounded">2. 索引模板类型</a>
+                    <a href="#component-templates" class="toc-link block py-2 rounded">3. 组件模板详解</a>
+                    <a href="#index-templates" class="toc-link block py-2 rounded">4. 索引模板配置</a>
+                    <a href="#template-priority" class="toc-link block py-2 rounded">5. 模板优先级与匹配</a>
+                    <a href="#template-examples" class="toc-link block py-2 rounded">6. 实战案例</a>
+                    <a href="#template-best-practices" class="toc-link block py-2 rounded">7. 模板管理最佳实践</a>
+                </div>
+              
+                <div>
+                    <a href="#conclusion" class="toc-link block py-2 rounded">🎯 总结</a>
+                </div>
+            </nav>
+        </aside>
+      
+        <!-- Main Content -->
+        <main class="content flex-1 p-6 md:p-8">
+            <header class="mb-10">
+                <h1 class="text-4xl font-bold text-gray-900 mb-4">Elasticsearch索引管理与索引模板详解</h1>
+                <div class="flex items-center text-gray-600">
+                    <span class="mr-4"><i class="far fa-calendar-alt mr-1"></i> 2023-10-15</span>
+                    <span class="mr-4"><i class="far fa-clock mr-1"></i> 15 分钟阅读</span>
+                    <span><i class="fas fa-tag mr-1"></i> Elasticsearch, 索引, 模板</span>
+                </div>
+            </header>
+          
+            <section id="intro" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">📌 引言</h2>
+                <p class="mb-4">在Elasticsearch生态系统中，索引是核心组件，它决定了数据如何存储、查询和优化。理解索引管理和索引模板对于构建高效且可扩展的Elasticsearch集群至关重要。本文将深入探讨索引管理的各个方面，以及如何使用索引模板实现自动化和标准化的索引创建流程。</p>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r">
+                    <p class="text-blue-800">本文基于Elasticsearch 7.x版本，部分功能在其他版本中可能有所不同。特别是索引模板API在7.8版本后进行了较大改进。</p>
+                </div>
+            </section>
+          
+            <!-- 第一部分：索引管理详解 -->
+            <section id="index-concept" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">🔍 1. 索引概念与架构</h2>
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">1.1 什么是索引</h3>
+                <p class="mb-4">在Elasticsearch中，索引是文档的集合，类似于关系数据库中的表。每个索引包含了一组具有相似特征的文档，并提供了查询和检索这些文档的能力。索引的名称必须是小写字母，不能包含特殊字符。</p>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">1.2 索引在Elasticsearch中的角色</h3>
+                <p class="mb-4">索引在Elasticsearch中扮演着数据组织和访问的核心角色。它提供了：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>文档的逻辑组织和归类</li>
+                    <li>优化查询的性能</li>
+                    <li>针对特定数据类型的分析和搜索功能</li>
+                    <li>数据分片和复制策略的实现基础</li>
+                </ul>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">1.3 索引的内部结构</h3>
+                <p class="mb-4">Elasticsearch索引由以下组件组成：</p>
+              
+                <div class="mermaid my-6">
+                    graph TD
+                    A[索引 Index] --> B[分片 Shard]
+                    B --> C[主分片 Primary Shard]
+                    B --> D[副本分片 Replica Shard]
+                    A --> E[映射 Mapping]
+                    A --> F[设置 Settings]
+                    A --> G[别名 Aliases]
+                </div>
+              
+                <p class="mb-4">每个索引被分为一个或多个分片，分片是Elasticsearch分布式架构的核心。分片有两种类型：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li><strong>主分片(Primary Shard)</strong>：每个文档存储在一个主分片中，主分片数量在索引创建后不可更改</li>
+                    <li><strong>副本分片(Replica Shard)</strong>：主分片的复制品，提供高可用性和读取性能</li>
+                </ul>
+              
+                <blockquote class="bg-yellow-50 p-4 rounded mb-6">
+                    <p>主分片数量决定了索引可以存储的最大数据量。过多的主分片会导致小分片问题，而过少则限制了横向扩展能力。</p>
+                </blockquote>
+            </section>
+          
+            <section id="index-lifecycle" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">⏱️ 2. 索引的生命周期</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">2.1 创建索引</h3>
+                <p class="mb-4">创建索引可以通过显式创建或在索引不存在时自动创建（前提是允许自动创建）。显式创建索引允许定制索引的各种参数：</p>
+              
+                <pre><code>{
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 1
+  },
+  "mappings": {
+    "properties": {
+      "field1": { "type": "text" },
+      "field2": { "type": "keyword" },
+      "field3": { "type": "date" }
+    }
+  }
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">2.2 打开/关闭索引</h3>
+                <p class="mb-4">索引可以临时关闭以减少集群负担，关闭的索引不接受读写操作，但仍占用少量资源：</p>
+              
+                <pre><code># 关闭索引
+POST /my_index/_close
+
+# 打开索引
+POST /my_index/_open</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">2.3 更新索引设置</h3>
+                <p class="mb-4">有些索引设置可以在创建后动态更新，例如副本数量：</p>
+              
+                <pre><code>PUT /my_index/_settings
+{
+  "index": {
+    "number_of_replicas": 2
+  }
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">2.4 删除索引</h3>
+                <p class="mb-4">当索引不再需要时，可以将其删除。这是一个不可逆操作，会永久删除索引中的所有数据：</p>
+              
+                <pre><code>DELETE /my_index</code></pre>
+              
+                <div class="mermaid my-6">
+                    graph LR
+                    A[创建索引] --> B[索引活跃]
+                    B --> C[关闭索引]
+                    C --> B
+                    B --> D[更新设置]
+                    D --> B
+                    B --> E[删除索引]
+                </div>
+            </section>
+          
+            <section id="index-settings" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">⚙️ 3. 索引设置详解</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">3.1 静态设置</h3>
+                <p class="mb-4">静态设置只能在索引创建时设置，之后不可更改：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li><code>index.number_of_shards</code>：主分片数量</li>
+                    <li><code>index.codec</code>：数据压缩方式</li>
+                    <li><code>index.routing_partition_size</code>：路由分区大小</li>
+                </ul>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">3.2 动态设置</h3>
+                <p class="mb-4">动态设置可以在索引创建后修改：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li><code>index.number_of_replicas</code>：副本分片数量</li>
+                    <li><code>index.refresh_interval</code>：刷新间隔，影响数据对搜索的可见性</li>
+                    <li><code>index.max_result_window</code>：分页查询的最大限制</li>
+                    <li><code>index.blocks.*</code>：索引操作的各种限制</li>
+                </ul>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">3.3 分析器设置</h3>
+                <p class="mb-4">分析器设置定义了文本如何被处理和索引：</p>
+              
+                <pre><code>PUT /my_index
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_custom_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [ "lowercase", "my_stemmer" ]
+        }
+      },
+      "filter": {
+        "my_stemmer": {
+          "type": "stemmer",
+          "language": "english"
+        }
+      }
+    }
+  }
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">3.4 映射设置</h3>
+                <p class="mb-4">映射定义了文档及其字段如何存储和索引：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li><code>dynamic</code>：控制是否自动添加新字段</li>
+                    <li><code>_source</code>：是否存储原始文档</li>
+                    <li><code>properties</code>：字段定义</li>
+                </ul>
+            </section>
+          
+            <section id="index-api" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">🔧 4. 索引管理API</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">4.1 创建索引API</h3>
+                <pre><code>PUT /my_new_index
+{
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 1
+  },
+  "mappings": {
+    "properties": {
+      "title": { "type": "text" },
+      "content": { "type": "text" },
+      "date": { "type": "date" }
+    }
+  }
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">4.2 获取索引信息</h3>
+                <pre><code># 获取特定索引信息
+GET /my_index
+
+# 获取多个索引
+GET /index1,index2
+
+# 获取所有索引
+GET /_cat/indices?v
+
+# 查看索引分片分配
+GET /_cat/shards?v</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">4.3 索引统计信息</h3>
+                <pre><code># 获取单个索引统计
+GET /my_index/_stats
+
+# 获取特定统计项
+GET /my_index/_stats/search,indexing</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">4.4 索引段管理</h3>
+                <p class="mb-4">段是Lucene中最小的索引单位，了解和管理段对优化性能很重要：</p>
+              
+                <pre><code># 查看段信息
+GET /my_index/_segments
+
+# 强制合并段
+POST /my_index/_forcemerge
+{
+  "max_num_segments": 1
+}</code></pre>
+              
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 my-6 rounded-r">
+                    <p class="text-yellow-800"><strong>注意</strong>：强制合并会消耗大量资源，应在低峰期进行，尤其是设置max_num_segments为1时。</p>
+                </div>
+            </section>
+          
+            <section id="index-alias" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">🔄 5. 索引别名管理</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">5.1 什么是索引别名</h3>
+                <p class="mb-4">索引别名是指向一个或多个索引的虚拟名称，通过别名可以实现：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>无缝切换索引（零停机重建索引）</li>
+                    <li>创建索引视图（针对不同用例优化查询）</li>
+                    <li>简化索引管理（尤其是时间序列数据）</li>
+                </ul>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">5.2 创建和管理别名</h3>
+                <pre><code># 添加别名
+POST /_aliases
+{
+  "actions": [
+    { "add": { "index": "my_index", "alias": "my_alias" } }
+  ]
+}
+
+# 删除别名
+POST /_aliases
+{
+  "actions": [
+    { "remove": { "index": "my_index", "alias": "my_alias" } }
+  ]
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">5.3 带过滤条件的别名</h3>
+                <p class="mb-4">别名可以包含过滤条件，创建数据的逻辑视图：</p>
+              
+                <pre><code>POST /_aliases
+{
+  "actions": [
+    {
+      "add": {
+        "index": "logs",
+        "alias": "error_logs",
+        "filter": { "term": { "level": "error" } }
+      }
+    }
+  ]
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">5.4 写入索引别名</h3>
+                <p class="mb-4">可以指定单个写入索引，实现写入重定向：</p>
+              
+                <pre><code>POST /_aliases
+{
+  "actions": [
+    {
+      "add": {
+        "index": "logs-current",
+        "alias": "logs-write",
+        "is_write_index": true
+      }
+    },
+    {
+      "add": {
+        "index": "logs-old",
+        "alias": "logs-write"
+      }
+    }
+  ]
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">5.5 零停机索引迁移</h3>
+                <div class="mermaid my-6">
+                    graph TD
+                    A[创建新索引] --> B[重建数据到新索引]
+                    B --> C[原子切换别名]
+                    C --> D[验证新索引]
+                    D --> E[删除旧索引]
+                </div>
+              
+                <pre><code># 原子切换别名
+POST /_aliases
+{
+  "actions": [
+    { "remove": { "index": "old_index", "alias": "my_app" } },
+    { "add": { "index": "new_index", "alias": "my_app" } }
+  ]
+}</code></pre>
+            </section>
+          
+            <section id="index-best-practices" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">🌟 6. 索引管理最佳实践</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">6.1 分片规划策略</h3>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>每个分片理想大小为20GB-40GB</li>
+                    <li>分片数量应该是节点数量的整数倍</li>
+                    <li>避免过度分片，每个节点分片数不超过20-25个</li>
+                    <li>考虑未来集群扩展需求</li>
+                </ul>
+              
+                <pre><code>PUT /optimal_index
+{
+  "settings": {
+    "number_of_shards": 3,    // 适合3-6节点集群
+    "number_of_replicas": 1   // 每份数据有2个副本(1主1副)
+  }
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">6.2 索引滚动策略</h3>
+                <p class="mb-4">对于时间序列数据，使用ILM(Index Lifecycle Management)和滚动索引：</p>
+              
+                <pre><code>PUT _ilm/policy/logs_policy
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "actions": {
+          "rollover": {
+            "max_size": "50GB",
+            "max_age": "7d"
+          }
+        }
+      },
+      "warm": {
+        "min_age": "30d",
+        "actions": {
+          "shrink": {
+            "number_of_shards": 1
+          },
+          "forcemerge": {
+            "max_num_segments": 1
+          }
+        }
+      },
+      "cold": {
+        "min_age": "60d",
+        "actions": {
+          "freeze": {}
+        }
+      },
+      "delete": {
+        "min_age": "90d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">6.3 映射优化</h3>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>禁用不需要的字段索引: <code>"index": false</code></li>
+                    <li>使用适当的数据类型，特别是日期和数字</li>
+                    <li>对于大文本字段考虑使用 <code>text</code> + <code>keyword</code> 多字段</li>
+                    <li>对于分析用例，考虑禁用 <code>_source</code> 或使用 <code>source_includes/excludes</code></li>
+                </ul>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">6.4 索引监控与维护</h3>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>定期监控索引大小和分片分布</li>
+                    <li>使用 <code>_cat/indices?v</code> 和 <code>_cat/shards?v</code> API</li>
+                    <li>关注索引健康状态(绿色/黄色/红色)</li>
+                    <li>使用Elasticsearch Exporter + Prometheus + Grafana建立监控体系</li>
+                </ul>
+              
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 my-6 rounded-r">
+                    <p class="text-green-800"><strong>最佳实践</strong>：为生产环境索引至少配置1个副本，确保数据高可用性；同时定期备份索引快照到远程仓库。</p>
+                </div>
+            </section>
+          
+            <!-- 第二部分：索引模板详解 -->
+            <section id="template-concept" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">📋 1. 索引模板概念</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">1.1 什么是索引模板</h3>
+                <p class="mb-4">索引模板是Elasticsearch中一种强大的功能，允许您预定义设置、映射和别名，这些配置会自动应用到新创建的、与模板模式匹配的索引上。索引模板特别适用于时间序列数据、日志数据等需要频繁创建新索引的场景。</p>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">1.2 索引模板的作用与优势</h3>
+                <ul class="list-disc pl-6 mb-4">
+                    <li><strong>自动化配置</strong>：无需为每个新索引手动指定相同的配置</li>
+                    <li><strong>标准化</strong>：确保所有索引使用一致的设置和映射</li>
+                    <li><strong>减少错误</strong>：避免手动创建索引时的配置错误</li>
+                    <li><strong>提高效率</strong>：简化管理流程，特别是在大规模部署中</li>
+                    <li><strong>版本控制</strong>：便于索引结构的演进和修改</li>
+                </ul>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">1.3 模板与索引的关系</h3>
+                <div class="mermaid my-6">
+                    graph LR
+                    A[索引模板] -->|匹配并应用到| B[新创建的索引]
+                    C[索引模式pattern] -->|定义匹配规则| A
+                    D[优先级priority] -->|决定应用顺序| A
+                    E[组件模板] -->|可被组合到| A
+                </div>
+              
+                <p class="mb-4">索引模板通过模式(pattern)匹配索引名称。当创建新索引时：</p>
+                <ol class="list-decimal pl-6 mb-4">
+                    <li>Elasticsearch检查索引名称是否匹配任何模板</li>
+                    <li>如果匹配多个模板，按优先级排序应用（高优先级覆盖低优先级）</li>
+                    <li>显式指定的索引设置会覆盖模板中的设置</li>
+                </ol>
+            </section>
+          
+            <section id="template-types" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">🔀 2. 索引模板类型</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">2.1 组件模板(Component Templates)</h3>
+                <p class="mb-4">组件模板是Elasticsearch 7.8引入的新功能，它们是可重用的构建块，可以组合到索引模板中：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>包含部分索引配置（settings、mappings或aliases）</li>
+                    <li>不直接应用于索引，而是被索引模板引用</li>
+                    <li>促进模块化设计和配置重用</li>
+                </ul>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">2.2 索引模板(Index Templates)</h3>
+                <p class="mb-4">索引模板是应用于新创建索引的完整配置模板：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>包含索引模式、优先级</li>
+                    <li>可以包含设置、映射和别名配置</li>
+                    <li>可以引用组件模板</li>
+                </ul>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">2.3 旧版模板vs新版模板</h3>
+                <p class="mb-4">Elasticsearch在7.8版本引入了新的索引模板API：</p>
+                <table class="w-full border-collapse border border-gray-300 mb-6">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="border border-gray-300 p-2">特性</th>
+                            <th class="border border-gray-300 p-2">旧版模板</th>
+                            <th class="border border-gray-300 p-2">新版模板</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="border border-gray-300 p-2">API端点</td>
+                            <td class="border border-gray-300 p-2"><code>_template</code></td>
+                            <td class="border border-gray-300 p-2"><code>_index_template</code> 和 <code>_component_template</code></td>
+                        </tr>
+                        <tr>
+                            <td class="border border-gray-300 p-2">组件化</td>
+                            <td class="border border-gray-300 p-2">不支持</td>
+                            <td class="border border-gray-300 p-2">支持组件模板</td>
+                        </tr>
+                        <tr>
+                            <td class="border border-gray-300 p-2">优先级控制</td>
+                            <td class="border border-gray-300 p-2">使用<code>order</code>字段</td>
+                            <td class="border border-gray-300 p-2">使用<code>priority</code>字段</td>
+                        </tr>
+                        <tr>
+                            <td class="border border-gray-300 p-2">模板匹配</td>
+                            <td class="border border-gray-300 p-2">使用通配符匹配</td>
+                            <td class="border border-gray-300 p-2">支持更复杂的索引模式</td>
+                        </tr>
+                    </tbody>
+                </table>
+              
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 my-6 rounded-r">
+                    <p class="text-blue-800"><strong>版本提示</strong>：旧版模板已被弃用，建议使用新版索引模板API进行开发。旧版和新版模板可以共存，但新版具有更高优先级。</p>
+                </div>
+            </section>
+          
+            <section id="component-templates" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">🧩 3. 组件模板详解</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">3.1 组件模板结构</h3>
+                <p class="mb-4">组件模板由以下部分组成：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li><strong>name</strong>：组件模板的唯一标识符</li>
+                    <li><strong>template</strong>：包含settings、mappings和aliases</li>
+                    <li><strong>_meta</strong>：可选的元数据，用于描述模板</li>
+                    <li><strong>version</strong>：可选的版本号，用于模板版本控制</li>
+                </ul>
+              
+                <pre><code>PUT _component_template/logging_settings
+{
+  "template": {
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1,
+      "index.refresh_interval": "5s"
+    }
+  },
+  "_meta": {
+    "description": "基础日志索引设置",
+    "created_by": "admin"
+  },
+  "version": 1
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">3.2 创建和管理组件模板</h3>
+                <p class="mb-4">组件模板可以通过以下API管理：</p>
+              
+                <pre><code># 创建/更新组件模板
+PUT _component_template/mappings_template
+{
+  "template": {
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "message": { "type": "text" },
+        "level": { "type": "keyword" }
+      }
+    }
+  }
+}
+
+# 获取组件模板
+GET _component_template/mappings_template
+
+# 获取所有组件模板
+GET _component_template
+
+# 删除组件模板
+DELETE _component_template/mappings_template</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">3.3 组件模板最佳实践</h3>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>按功能划分组件模板（设置、映射、别名等）</li>
+                    <li>使用有意义的命名约定</li>
+                    <li>包含版本信息和元数据</li>
+                    <li>遵循单一职责原则，每个组件关注一个方面</li>
+                </ul>
+              
+                <p class="mb-4">组件模板示例：</p>
+              
+                <pre><code># 设置组件
+PUT _component_template/base_settings
+{
+  "template": {
+    "settings": {
+      "codec": "best_compression",
+      "index.lifecycle.name": "data_retention_policy"
+    }
+  },
+  "version": 1
+}
+
+# 映射组件
+PUT _component_template/base_mappings
+{
+  "template": {
+    "mappings": {
+      "dynamic_templates": [
+        {
+          "strings_as_keywords": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "version": 2
+}</code></pre>
+            </section>
+          
+            <section id="index-templates" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">📝 4. 索引模板配置</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">4.1 索引模板结构</h3>
+                <p class="mb-4">索引模板包含以下核心组件：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li><strong>name</strong>：模板的唯一标识符</li>
+                    <li><strong>index_patterns</strong>：用于匹配索引名称的模式</li>
+                    <li><strong>priority</strong>：决定模板应用顺序的优先级</li>
+                    <li><strong>template</strong>：包含settings、mappings和aliases</li>
+                    <li><strong>composed_of</strong>：引用的组件模板列表</li>
+                    <li><strong>_meta</strong>：可选元数据信息</li>
+                    <li><strong>version</strong>：可选版本号</li>
+                </ul>
+              
+                <pre><code>PUT _index_template/logs_template
+{
+  "index_patterns": ["logs-*"],
+  "priority": 100,
+  "composed_of": ["logging_settings", "mappings_template"],
+  "template": {
+    "settings": {
+      "index.lifecycle.rollover_alias": "logs"
+    },
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "host": { "type": "keyword" }
+      }
+    },
+    "aliases": {
+      "all_logs": {}
+    }
+  },
+  "_meta": {
+    "description": "日志索引模板",
+    "created": "2023-10-15"
+  },
+  "version": 1
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">4.2 索引模板API操作</h3>
+                <pre><code># 创建/更新索引模板
+PUT _index_template/metrics_template
+{
+  "index_patterns": ["metrics-*"],
+  "priority": 200,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "value": { "type": "double" },
+        "timestamp": { "type": "date" }
+      }
+    }
+  }
+}
+
+# 获取索引模板
+GET _index_template/metrics_template
+
+# 获取所有索引模板
+GET _index_template
+
+# 查看索引模板是否存在
+HEAD _index_template/metrics_template
+
+# 删除索引模板
+DELETE _index_template/metrics_template</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">4.3 模板合并逻辑</h3>
+                <p class="mb-4">当多个组件与模板自身配置合并时，遵循以下规则：</p>
+                <ol class="list-decimal pl-6 mb-4">
+                    <li>组件模板按照它们在<code>composed_of</code>列表中的顺序应用</li>
+                    <li>后应用的组件会覆盖先应用组件的冲突设置</li>
+                    <li>索引模板自身的<code>template</code>配置最后应用，拥有最高优先级</li>
+                    <li>如果有嵌套属性冲突，则整个对象会被替换，而不是合并</li>
+                </ol>
+            </section>
+          
+            <section id="template-priority" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">📊 5. 模板优先级与匹配</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">5.1 索引模式语法</h3>
+                <p class="mb-4">索引模式使用通配符来匹配索引名称：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li><code>*</code>：匹配零个或多个字符</li>
+                    <li><code>?</code>：匹配单个字符</li>
+                </ul>
+              
+                <pre><code># 匹配所有以logs-开头的索引
+"index_patterns": ["logs-*"]
+
+# 匹配特定年份的日志
+"index_patterns": ["logs-2023-*"]
+
+# 匹配多种模式
+"index_patterns": ["logs-*", "metrics-*"]</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">5.2 模板优先级机制</h3>
+                <p class="mb-4">当多个模板匹配同一个索引时，优先级(priority)决定它们的应用顺序：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>高优先级模板覆盖低优先级模板的冲突设置</li>
+                    <li>相同优先级模板按名称字母顺序应用</li>
+                    <li>内置模板通常具有负优先级</li>
+                </ul>
+              
+                <pre><code># 高优先级通用模板
+PUT _index_template/base_template
+{
+  "index_patterns": ["*"],
+  "priority": 0,
+  "template": {
+    "settings": {
+      "number_of_shards": 1
+    }
+  }
+}
+
+# 特定类型的更高优先级模板
+PUT _index_template/logs_template
+{
+  "index_patterns": ["logs-*"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 2
+    }
+  }
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">5.3 模板匹配与应用流程</h3>
+                <div class="mermaid my-6">
+                    graph TD
+                    A[创建新索引] --> B[查找匹配的索引模板]
+                    B --> C{匹配多个模板?}
+                    C -- 是 --> D[按优先级排序]
+                    C -- 否 --> E[应用单个模板]
+                    D --> F[逐个应用模板]
+                    F --> G[合并所有模板配置]
+                    E --> G
+                    G --> H[应用显式指定的设置]
+                    H --> I[创建最终索引配置]
+                </div>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">5.4 验证模板匹配结果</h3>
+                <p class="mb-4">使用模拟API测试模板匹配和合并结果：</p>
+              
+                <pre><code># 模拟创建索引以测试模板应用
+POST _index_template/_simulate_index/logs-2023-10-15
+              
+# 模拟包含明确设置的索引创建
+POST _index_template/_simulate
+{
+  "index_name": "logs-2023-10-15",
+  "template": {
+    "settings": {
+      "number_of_replicas": 2
+    }
+  }
+}</code></pre>
+            </section>
+          
+            <section id="template-examples" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">💡 6. 实战案例</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">6.1 日志数据模板设计</h3>
+                <p class="mb-4">适用于应用日志、系统日志等场景：</p>
+              
+                <pre><code># 日志设置组件
+PUT _component_template/logs_settings
+{
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "logs_policy",
+      "index.lifecycle.rollover_alias": "logs"
+    }
+  }
+}
+
+# 日志映射组件
+PUT _component_template/logs_mappings
+{
+  "template": {
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "message": { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } },
+        "level": { "type": "keyword" },
+        "logger_name": { "type": "keyword" },
+        "thread_name": { "type": "keyword" },
+        "host": { "type": "keyword" },
+        "service": { "type": "keyword" },
+        "trace": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "span_id": { "type": "keyword" }
+          }
+        }
+      }
+    }
+  }
+}
+
+# 日志索引模板
+PUT _index_template/logs_template
+{
+  "index_patterns": ["logs-*"],
+  "composed_of": ["logs_settings", "logs_mappings"],
+  "priority": 100,
+  "template": {
+    "aliases": {
+      "all_logs": {}
+    }
+  },
+  "_meta": {
+    "description": "用于应用日志的模板"
+  },
+  "version": 1
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">6.2 时序数据模板设计</h3>
+                <p class="mb-4">适用于指标、监控、IoT数据等场景：</p>
+              
+                <pre><code># 时序数据索引模板
+PUT _index_template/metrics_template
+{
+  "index_patterns": ["metrics-*"],
+  "priority": 200,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "index.mapping.coerce": false,
+      "index.refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "host": { "type": "keyword" },
+        "service": { "type": "keyword" },
+        "metric_name": { "type": "keyword" },
+        "metric_type": { "type": "keyword" },
+        "value": { "type": "double" },
+        "dimensions": {
+          "type": "object",
+          "dynamic": true
+        }
+      }
+    },
+    "aliases": {
+      "all_metrics": {}
+    }
+  },
+  "_meta": {
+    "description": "用于时序指标数据的模板"
+  },
+  "version": 1
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">6.3 文档数据模板设计</h3>
+                <p class="mb-4">适用于搜索引擎、内容管理系统等场景：</p>
+              
+                <pre><code># 文档分析器组件
+PUT _component_template/text_analyzers
+{
+  "template": {
+    "settings": {
+      "analysis": {
+        "analyzer": {
+          "html_strip_analyzer": {
+            "type": "custom",
+            "tokenizer": "standard",
+            "filter": ["lowercase", "stop"],
+            "char_filter": ["html_strip"]
+          }
+        }
+      }
+    }
+  }
+}
+
+# 文档索引模板
+PUT _index_template/documents_template
+{
+  "index_patterns": ["docs-*"],
+  "priority": 300,
+  "composed_of": ["text_analyzers"],
+  "template": {
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "title": { 
+          "type": "text",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "content": { 
+          "type": "text", 
+          "analyzer": "html_strip_analyzer" 
+        },
+        "summary": { "type": "text" },
+        "author": { "type": "keyword" },
+        "tags": { "type": "keyword" },
+        "published_date": { "type": "date" },
+        "updated_date": { "type": "date" }
+      }
+    }
+  },
+  "_meta": {
+    "description": "用于文档内容的模板"
+  },
+  "version": 1
+}</code></pre>
+            </section>
+          
+            <section id="template-best-practices" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">🏆 7. 模板管理最佳实践</h2>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">7.1 模板设计原则</h3>
+                <ul class="list-disc pl-6 mb-6">
+                    <li><strong>模块化设计</strong>：使用组件模板分离关注点</li>
+                    <li><strong>层次化组织</strong>：从通用到特定，使用优先级控制</li>
+                    <li><strong>版本控制</strong>：为所有模板添加版本号</li>
+                    <li><strong>文档化</strong>：使用<code>_meta</code>字段添加描述信息</li>
+                    <li><strong>可测试性</strong>：使用模拟API验证模板</li>
+                </ul>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">7.2 模板版本控制</h3>
+                <p class="mb-4">版本控制是管理模板演进的关键：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>始终包含<code>version</code>字段</li>
+                    <li>使用命名约定区分大版本变更，如<code>logs_v2_template</code></li>
+                    <li>在<code>_meta</code>中记录变更历史</li>
+                    <li>使用代码库（如Git）管理模板JSON文件</li>
+                </ul>
+              
+                <pre><code>PUT _index_template/logs_v2_template
+{
+  "index_patterns": ["logs-v2-*"],
+  "priority": 200,
+  "template": {
+    "settings": { ... },
+    "mappings": { ... }
+  },
+  "_meta": {
+    "description": "用于应用日志的V2模板",
+    "created_by": "admin",
+    "created_at": "2023-10-15",
+    "version_history": [
+      {"version": 1, "date": "2023-09-01", "changes": "初始版本"},
+      {"version": 2, "date": "2023-10-15", "changes": "添加trace字段"}
+    ]
+  },
+  "version": 2
+}</code></pre>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">7.3 模板迁移策略</h3>
+                <p class="mb-4">当需要对现有模板进行不兼容更改时，应采用以下迁移策略：</p>
+                <ol class="list-decimal pl-6 mb-4">
+                    <li>创建新版本模板，使用不同的索引模式</li>
+                    <li>创建新的别名，指向新索引</li>
+                    <li>重建数据（如果需要）或仅对新数据应用新模板</li>
+                    <li>逐步迁移应用到新别名</li>
+                    <li>等待旧索引过期或手动删除</li>
+                </ol>
+              
+                <div class="mermaid my-6">
+                    graph LR
+                    A[创建新版模板] --> B[创建新数据流]
+                    B --> C[应用程序迁移]
+                    C --> D[旧数据处理]
+                    D --> E[删除旧模板]
+                </div>
+              
+                <h3 class="text-xl font-semibold mb-3 text-gray-700">7.4 模板测试方法</h3>
+                <p class="mb-4">确保模板按预期工作的测试策略：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>使用模拟API验证模板匹配和合并结果</li>
+                    <li>在测试环境中部署模板并创建测试索引</li>
+                    <li>验证生成的索引设置和映射</li>
+                    <li>测试数据索引和查询行为</li>
+                    <li>使用自动化测试脚本验证模板更改</li>
+                </ul>
+              
+                <pre><code># 模拟索引创建
+POST _index_template/_simulate/logs-2023-10-15
+
+# 验证特定模板匹配
+POST _index_template/_simulate_index/logs-2023-10-15
+
+# 创建测试索引
+PUT logs-test-001
+{
+  "aliases": {
+    "logs-test": {}
+  }
+}
+
+# 验证索引设置
+GET logs-test-001/_settings
+
+# 验证索引映射
+GET logs-test-001/_mapping</code></pre>
+              
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 my-6 rounded-r">
+                    <p class="text-green-800"><strong>最佳实践</strong>：将模板定义存储在版本控制系统中，使用CI/CD流程自动部署和测试模板变更。这确保了模板变更的可追踪性和可靠性。</p>
+                </div>
+            </section>
+          
+            <section id="conclusion" class="mb-12">
+                <h2 class="text-2xl font-bold mb-4 pb-2 border-b border-gray-200 text-gray-800">🎯 总结</h2>
+                <p class="mb-4">索引管理和索引模板是Elasticsearch集群管理中的关键组成部分。通过深入理解索引的生命周期、设置和优化策略，以及掌握索引模板的创建和管理，您可以构建更加高效、一致且易于维护的Elasticsearch部署。</p>
+              
+                <p class="mb-4">索引模板为大规模Elasticsearch部署提供了关键的自动化和标准化机制，特别是：</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>通过组件模板实现配置重用</li>
+                    <li>通过索引模板自动化索引创建</li>
+                    <li>通过版本控制和测试确保可靠的模板更新</li>
+                </ul>
+              
+                <p class="mb-4">在实际应用中，应当结合业务需求，遵循最佳实践，定期审查和优化索引和模板配置，以保持Elasticsearch集群的高性能和可靠性。</p>
+              
+                <div class="bg-gray-50 p-6 rounded-lg shadow-sm mt-6">
+                    <h3 class="text-lg font-semibold mb-3">进一步学习资源</h3>
+                    <ul class="list-disc pl-6">
+                        <li><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html" class="text-blue-600 hover:underline">Elasticsearch官方文档</a></li>
+                        <li><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/index-templates.html" class="text-blue-600 hover:underline">索引模板官方文档</a></li>
+                        <li><a href="https://www.elastic.co/blog/composable-index-templates-in-elasticsearch-7-8-0" class="text-blue-600 hover:underline">Elasticsearch 7.8.0中的可组合索引模板</a></li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+    </div>
+  
+    <script>
+        // Initialize mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { curve: 'basis' }
+        });
+      
+        // Highlight active section in TOC
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocLinks = document.querySelectorAll('.toc-link');
+          
+            function highlightTOC() {
+                let scrollY = window.pageYOffset;
+              
+                sections.forEach(section => {
+                    const sectionHeight = section.offsetHeight;
+                    const sectionTop = section.offsetTop - 100;
+                    const sectionId = section.getAttribute('id');
+                  
+                    if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
+                        tocLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href') === '#' + sectionId) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }
+          
+            window.addEventListener('scroll', highlightTOC);
+            highlightTOC(); // Call once on load
+        });
+    </script>
+</body>
+</html>
