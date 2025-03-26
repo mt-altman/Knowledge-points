@@ -1,20 +1,75 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>查询和聚合的基础使用</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Inter:wght@400;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <title>Elasticsearch 查询与聚合基础指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
     <style>
-        body { font-family: 'Noto Sans SC', 'Inter', sans-serif; }
-        code { font-family: 'Fira Code', monospace; }
-        .bg-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
-        .code-block { background-color: #f8f9fa; border-radius: 0.5rem; }
-        @media print {
-            .no-print { display: none; }
-            .page-break { page-break-after: always; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        .sidebar {
+            transition: all 0.3s;
+        }
+        .toc-link {
+            display: block;
+            padding: 5px 0;
+            color: #333;
+            text-decoration: none;
+            border-left: 2px solid transparent;
+            padding-left: 10px;
+            transition: all 0.2s;
+        }
+        .toc-link:hover {
+            color: #5046e5;
+            border-left: 2px solid #5046e5;
+            background-color: rgba(80, 70, 229, 0.05);
+        }
+        .toc-link.active {
+            color: #5046e5;
+            border-left: 2px solid #5046e5;
+            background-color: rgba(80, 70, 229, 0.1);
+            font-weight: 500;
+        }
+        .content pre {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            overflow-x: auto;
+        }
+        .content code {
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.9em;
+            background-color: rgba(80, 70, 229, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            color: #5046e5;
+        }
+        .content pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: #333;
+        }
+        .toc-level-2 {
+            margin-left: 10px;
+        }
+        .toc-level-3 {
+            margin-left: 20px;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 40;
+                height: 100vh;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
         }
     /* 返回首页按钮样式 */
         .home-button-fixed {
@@ -57,275 +112,818 @@
         }</style>
 </head>
 <body class="bg-gray-50"><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
-    <header class="bg-gradient text-white p-6 shadow-lg">
-        <div class="container mx-auto">
-            <div class="flex flex-col md:flex-row justify-between items-center">
-                <h1 class="text-3xl font-bold mb-2 md:mb-0">查询和聚合的基础使用</h1>
-                <span class="bg-yellow-500 text-gray-900 px-3 py-1 rounded-full text-sm font-semibold">初级</span>
+    <div class="relative min-h-screen">
+        <!-- Mobile menu button -->
+        <button id="menu-toggle" class="lg:hidden fixed bottom-6 right-6 z-50 bg-indigo-600 text-white p-3 rounded-full shadow-lg">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar w-64 bg-white shadow-md fixed h-screen overflow-y-auto p-4 lg:translate-x-0">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-indigo-700">
+                    <i class="fas fa-book mr-2"></i>目录
+                </h2>
+                <button id="close-menu" class="lg:hidden text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-        </div>
-    </header>
+            <nav id="toc" class="toc">
+                <a href="#introduction" class="toc-link">📚 1. Elasticsearch 查询与聚合简介</a>
+                <a href="#query-basics" class="toc-link">🔍 2. 查询基础</a>
+                <a href="#match-query" class="toc-link toc-level-2">2.1 Match 查询</a>
+                <a href="#term-query" class="toc-link toc-level-2">2.2 Term 查询</a>
+                <a href="#range-query" class="toc-link toc-level-2">2.3 Range 查询</a>
+                <a href="#bool-query" class="toc-link toc-level-2">2.4 Bool 复合查询</a>
+                <a href="#query-string" class="toc-link toc-level-2">2.5 Query String 查询</a>
+                <a href="#aggregation-basics" class="toc-link">📊 3. 聚合基础</a>
+                <a href="#bucket-aggs" class="toc-link toc-level-2">3.1 Bucket 聚合</a>
+                <a href="#metric-aggs" class="toc-link toc-level-2">3.2 Metric 聚合</a>
+                <a href="#pipeline-aggs" class="toc-link toc-level-2">3.3 Pipeline 聚合</a>
+                <a href="#combined-query-agg" class="toc-link">🔄 4. 组合查询与聚合</a>
+                <a href="#pagination-sorting" class="toc-link">📑 5. 分页与排序</a>
+                <a href="#highlighting" class="toc-link">✨ 6. 高亮搜索结果</a>
+                <a href="#performance-tips" class="toc-link">⚡ 7. 性能优化提示</a>
+                <a href="#conclusion" class="toc-link">🏁 8. 总结</a>
+            </nav>
+        </aside>
 
-    <main class="container mx-auto p-4 md:p-6">
-        <!-- 1. 术语定义 -->
-        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">术语定义</h2>
-            <div class="space-y-4">
-                <div>
-                    <p class="mb-2"><strong>查询 (Query)</strong>：在数据库中检索和筛选数据的操作，用于从数据集中获取满足特定条件的记录。</p>
-                    <p class="mb-2"><strong>聚合 (Aggregation)</strong>：对数据集进行统计分析的过程，通过计算汇总值（如总和、平均值、最大值等）来提取数据洞察。</p>
-                </div>
-                <div class="flex items-center text-gray-700 bg-blue-50 p-3 rounded-lg">
-                    <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <p>查询和聚合是数据处理的基础操作，几乎所有数据库系统都支持这些功能。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 2. 实现细节与优化 -->
-        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">实现细节与优化</h2>
-            
-            <h3 class="text-xl font-semibold mt-4 mb-2">基本查询操作</h3>
-            <div class="code-block p-4 mb-4 overflow-x-auto">
-                <pre><code class="language-sql">-- SQL基本查询示例
-SELECT 列名1, 列名2 
-FROM 表名
-WHERE 条件;
-
--- 示例：查询所有年龄大于18的用户
-SELECT user_id, username, age 
-FROM users 
-WHERE age > 18;</code></pre>
-                <button class="copy-btn mt-2 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-sm">复制代码</button>
-            </div>
-
-            <h3 class="text-xl font-semibold mt-4 mb-2">基本聚合操作</h3>
-            <div class="code-block p-4 mb-4 overflow-x-auto">
-                <pre><code class="language-sql">-- SQL基本聚合示例
-SELECT 聚合函数(列名)
-FROM 表名
-[GROUP BY 分组列];
-
--- 示例：计算每个部门的平均工资
-SELECT department_id, AVG(salary) as avg_salary
-FROM employees
-GROUP BY department_id;</code></pre>
-                <button class="copy-btn mt-2 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-sm">复制代码</button>
-            </div>
-
-            <div class="mt-4">
-                <h3 class="text-xl font-semibold mb-2">查询和聚合的工作流程</h3>
-                <div class="mermaid-diagram">
-                    <div class="mermaid">
-graph TD
-    A[数据源] --> B[查询解析]
-    B --> C[执行计划生成]
-    C --> D[数据过滤/WHERE]
-    D --> E{是否需要聚合?}
-    E -->|是| F[分组/GROUP BY]
-    F --> G[聚合计算]
-    E -->|否| H[结果排序/ORDER BY]
-    G --> H
-    H --> I[结果限制/LIMIT]
-    I --> J[返回结果集]
+        <!-- Main content -->
+        <main class="content lg:ml-64 p-6 lg:p-8">
+            <article class="max-w-4xl mx-auto bg-white rounded-xl shadow-md p-6 lg:p-10">
+                <h1 class="text-3xl font-bold text-indigo-800 mb-6">Elasticsearch 查询与聚合基础指南</h1>
+              
+                <section id="introduction" class="mb-10">
+                    <h2 class="text-2xl font-semibold text-indigo-700 mb-4">
+                        <i class="fas fa-book mr-2"></i>1. Elasticsearch 查询与聚合简介
+                    </h2>
+                    <p class="mb-4">Elasticsearch 是一个分布式、RESTful 风格的搜索和分析引擎，基于 Apache Lucene 构建。它能够以近实时的方式存储、搜索和分析大量数据。</p>
+                  
+                    <div class="bg-indigo-50 p-4 rounded-lg mb-4">
+                        <p class="font-medium text-indigo-800">Elasticsearch 两大核心功能：</p>
+                        <ul class="list-disc list-inside ml-4 mt-2">
+                            <li><strong>查询(Query)</strong>：用于检索匹配特定条件的文档</li>
+                            <li><strong>聚合(Aggregation)</strong>：用于分析和汇总数据</li>
+                        </ul>
                     </div>
-                </div>
-            </div>
-        </section>
+                  
+                    <div class="mb-6">
+                        <div class="mermaid">
+                        graph TD
+                            A[Elasticsearch API] --> B[查询 DSL]
+                            A --> C[聚合 API]
+                            B --> D[全文查询]
+                            B --> E[Term 级别查询]
+                            B --> F[复合查询]
+                            C --> G[Bucket 聚合]
+                            C --> H[Metric 聚合]
+                            C --> I[Pipeline 聚合]
+                            C --> J[Matrix 聚合]
+                        </div>
+                    </div>
+                  
+                    <p>在本文中，我们将学习如何使用 Elasticsearch 的查询 DSL（领域特定语言）和聚合功能来有效地检索和分析数据。</p>
+                </section>
+              
+                <section id="query-basics" class="mb-10">
+                    <h2 class="text-2xl font-semibold text-indigo-700 mb-4">
+                        <i class="fas fa-search mr-2"></i>2. 查询基础
+                    </h2>
+                    <p class="mb-4">Elasticsearch 提供了一种基于 JSON 的查询语言（Query DSL）来定义查询。查询可分为两大类：</p>
+                  
+                    <div class="grid md:grid-cols-2 gap-4 mb-6">
+                        <div class="bg-indigo-50 p-4 rounded-lg">
+                            <h3 class="font-medium text-indigo-800 mb-2">叶查询子句</h3>
+                            <p>在特定字段中查找特定值的查询（如 match、term、range）。这些查询可以独立使用。</p>
+                        </div>
+                        <div class="bg-indigo-50 p-4 rounded-lg">
+                            <h3 class="font-medium text-indigo-800 mb-2">复合查询子句</h3>
+                            <p>包含其他叶查询或复合查询的查询（如 bool、dis_max），用于组合多个查询。</p>
+                        </div>
+                    </div>
+                  
+                    <p class="mb-4">基本的查询请求结构如下：</p>
+                  
+<pre><code>{
+  "query": {
+    "查询类型": {
+      "参数1": "值1",
+      "参数2": "值2"
+    }
+  }
+}</code></pre>
+                  
+                    <section id="match-query" class="mt-6 mb-6">
+                        <h3 class="text-xl font-semibold text-indigo-600 mb-3">2.1 Match 查询</h3>
+                        <p class="mb-2">Match 查询是全文查询的标准查询，对输入文本进行分析（如分词），然后构建查询。</p>
+                      
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "match": {
+      "title": "elasticsearch guide"
+    }
+  }
+}</code></pre>
+                      
+                        <p class="mt-2">上述查询会搜索 title 字段中包含 "elasticsearch" 或 "guide" 的文档。</p>
+                      
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-3">
+                            <p class="text-sm text-yellow-700">
+                                <strong>注意：</strong> match 查询默认使用 OR 操作符，可以通过设置 operator 参数修改：
+                            </p>
+                        </div>
+                      
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "match": {
+      "title": {
+        "query": "elasticsearch guide",
+        "operator": "and"
+      }
+    }
+  }
+}</code></pre>
+                      
+                        <p class="mt-2">这样就要求文档同时包含 "elasticsearch" 和 "guide" 两个词。</p>
+                    </section>
+                  
+                    <section id="term-query" class="mb-6">
+                        <h3 class="text-xl font-semibold text-indigo-600 mb-3">2.2 Term 查询</h3>
+                        <p class="mb-2">Term 查询用于精确值匹配，不会对搜索词进行分析处理。适用于关键字、数字、日期等结构化数据。</p>
+                      
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "term": {
+      "status": {
+        "value": "active"
+      }
+    }
+  }
+}</code></pre>
+                      
+                        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mt-3">
+                            <div class="flex">
+                                <div class="mr-3 text-blue-500">
+                                    <i class="fas fa-info-circle text-xl"></i>
+                                </div>
+                                <p class="text-sm text-blue-700">
+                                    <strong>最佳实践：</strong> 对于文本字段，确保理解分析与未分析字段的区别。如果需要精确匹配，使用 keyword 类型字段或 .keyword 子字段。
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+                  
+                    <section id="range-query" class="mb-6">
+                        <h3 class="text-xl font-semibold text-indigo-600 mb-3">2.3 Range 查询</h3>
+                        <p class="mb-2">Range 查询用于查找字段值在指定范围内的文档，适用于数字、日期等类型。</p>
+                      
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "range": {
+      "age": {
+        "gte": 20,
+        "lte": 40
+      }
+    }
+  }
+}</code></pre>
+                      
+                        <p class="mt-2">常用的范围操作符：</p>
+                        <ul class="list-disc list-inside ml-4">
+                            <li><code>gt</code> - 大于</li>
+                            <li><code>gte</code> - 大于等于</li>
+                            <li><code>lt</code> - 小于</li>
+                            <li><code>lte</code> - 小于等于</li>
+                        </ul>
+                      
+                        <p class="mt-2">对于日期类型的范围查询：</p>
+                      
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "range": {
+      "created_at": {
+        "gte": "2021-01-01",
+        "lte": "now",
+        "format": "yyyy-MM-dd"
+      }
+    }
+  }
+}</code></pre>
+                    </section>
+                  
+                    <section id="bool-query" class="mb-6">
+                        <h3 class="text-xl font-semibold text-indigo-600 mb-3">2.4 Bool 复合查询</h3>
+                        <p class="mb-2">Bool 查询允许您组合多个查询子句，是构建复杂查询的基础。</p>
+                      
+                        <p>Bool 查询包含四种子句类型：</p>
+                        <ul class="list-disc list-inside ml-4 mb-4">
+    <li><code>must</code>：文档必须匹配这些条件，类似于 AND</li>
+    <li><code>should</code>：文档应该匹配这些条件，类似于 OR</li>
+    <li><code>must_not</code>：文档不能匹配这些条件，类似于 NOT</li>
+    <li><code>filter</code>：必须匹配，但不影响相关性评分</li>
+</ul>
 
-        <!-- 3. 应用场景 -->
-        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">应用场景</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div class="border rounded-lg p-4">
-                    <h3 class="font-semibold text-lg mb-2">电子商务</h3>
-                    <p>查询：获取特定价格范围内的产品</p>
-                    <p>聚合：计算每个类别的销售总额</p>
-                </div>
-                <div class="border rounded-lg p-4">
-                    <h3 class="font-semibold text-lg mb-2">社交媒体</h3>
-                    <p>查询：检索特定用户的所有帖子</p>
-                    <p>聚合：统计每日活跃用户数量</p>
-                </div>
-            </div>
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        { "match": { "title": "elasticsearch" } }
+      ],
+      "should": [
+        { "match": { "content": "search" } },
+        { "match": { "content": "analysis" } }
+      ],
+      "must_not": [
+        { "term": { "status": "deleted" } }
+      ],
+      "filter": [
+        { "range": { "publish_date": { "gte": "2020-01-01" } } }
+      ]
+    }
+  }
+}</code></pre>
 
-            <h3 class="text-xl font-semibold mt-4 mb-2">实际示例：销售数据分析</h3>
-            <div class="code-block p-4 mb-4 overflow-x-auto">
-                <pre><code class="language-sql">-- 查询：获取最近30天的高价值订单
-SELECT order_id, customer_name, total_amount
-FROM orders
-WHERE order_date >= DATEADD(day, -30, GETDATE())
-  AND total_amount > 1000
-ORDER BY total_amount DESC;
-
--- 聚合：按地区统计销售额
-SELECT region, COUNT(*) as order_count, SUM(total_amount) as total_sales
-FROM orders
-GROUP BY region
-ORDER BY total_sales DESC;</code></pre>
-                <button class="copy-btn mt-2 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-sm">复制代码</button>
-            </div>
-        </section>
-
-        <!-- 4. 比较分析 -->
-        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">比较分析</h2>
-            
-            <h3 class="text-xl font-semibold mb-3">常见聚合函数比较</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full bg-white border">
-                    <thead>
-                        <tr class="bg-gray-100">
-                            <th class="py-2 px-4 border">聚合函数</th>
-                            <th class="py-2 px-4 border">用途</th>
-                            <th class="py-2 px-4 border">示例</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="py-2 px-4 border">COUNT()</td>
-                            <td class="py-2 px-4 border">计算行数</td>
-                            <td class="py-2 px-4 border"><code>COUNT(*)</code></td>
-                        </tr>
-                        <tr>
-                            <td class="py-2 px-4 border">SUM()</td>
-                            <td class="py-2 px-4 border">计算总和</td>
-                            <td class="py-2 px-4 border"><code>SUM(price)</code></td>
-                        </tr>
-                        <tr>
-                            <td class="py-2 px-4 border">AVG()</td>
-                            <td class="py-2 px-4 border">计算平均值</td>
-                            <td class="py-2 px-4 border"><code>AVG(score)</code></td>
-                        </tr>
-                        <tr>
-                            <td class="py-2 px-4 border">MAX()/MIN()</td>
-                            <td class="py-2 px-4 border">找出最大/最小值</td>
-                            <td class="py-2 px-4 border"><code>MAX(salary)</code></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <h3 class="text-xl font-semibold mt-4 mb-3">不同数据库系统的查询语法比较</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="border rounded-lg p-4">
-                    <h4 class="font-semibold mb-2">SQL数据库 (MySQL, PostgreSQL)</h4>
-                    <p class="text-sm">使用标准SQL语法，支持复杂的JOIN和子查询</p>
-                </div>
-                <div class="border rounded-lg p-4">
-                    <h4 class="font-semibold mb-2">NoSQL数据库 (MongoDB)</h4>
-                    <p class="text-sm">使用JSON风格的查询语法，聚合管道操作</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 5. 总结 -->
-        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">总结</h2>
-            
-            <div class="mermaid-diagram mb-4">
-                <div class="mermaid">
-mindmap
-  root((查询和聚合))
-    基本概念
-      查询：数据检索
-      聚合：数据汇总
-    常见操作
-      SELECT
-      WHERE
-      GROUP BY
-      HAVING
-      ORDER BY
-    优化技巧
-      索引使用
-      查询重写
-      避免全表扫描
-                </div>
-            </div>
-
-            <h3 class="text-xl font-semibold mb-3">常见问题与解决方案</h3>
-            <div class="space-y-3">
-                <div class="p-3 bg-gray-50 rounded-lg">
-                    <p class="font-semibold">问题：查询速度慢</p>
-                    <p>解决方案：创建适当的索引，优化查询语句，避免使用SELECT *</p>
-                </div>
-                <div class="p-3 bg-gray-50 rounded-lg">
-                    <p class="font-semibold">问题：聚合操作内存消耗大</p>
-                    <p>解决方案：限制结果集大小，使用分批处理，考虑使用物化视图</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 6. 参考资料 -->
-        <section class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2">参考资料</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <h3 class="text-lg font-semibold mb-2">中文资源</h3>
-                    <ul class="list-disc pl-5 space-y-1">
-                        <li><a href="#" class="text-blue-600 hover:underline">《SQL必知必会》中文版</a></li>
-                        <li><a href="#" class="text-blue-600 hover:underline">菜鸟教程 - SQL教程</a></li>
-                        <li><a href="#" class="text-blue-600 hover:underline">W3School中文网 - SQL教程</a></li>
-                    </ul>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-2">英文资源</h3>
-                    <ul class="list-disc pl-5 space-y-1">
-                        <li><a href="#" class="text-blue-600 hover:underline">SQL for Data Analysis</a></li>
-                        <li><a href="#" class="text-blue-600 hover:underline">PostgreSQL Documentation</a></li>
-                        <li><a href="#" class="text-blue-600 hover:underline">MongoDB Aggregation Pipeline</a></li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="bg-gray-800 text-white p-6 mt-6">
-        <div class="container mx-auto text-center">
-            <p>© 2023 技术术语学习助手 | 查询和聚合的基础使用</p>
+<div class="bg-green-50 border-l-4 border-green-400 p-4 mt-3">
+    <div class="flex">
+        <div class="mr-3 text-green-500">
+            <i class="fas fa-lightbulb text-xl"></i>
         </div>
-    </footer>
+        <p class="text-sm text-green-700">
+            <strong>性能提示：</strong> 优先使用 filter 而非 must，因为 filter 子句不计算分数且结果可被缓存，从而提高查询效率。
+        </p>
+    </div>
+</div>
+</section>
+
+<section id="query-string" class="mb-6">
+    <h3 class="text-xl font-semibold text-indigo-600 mb-3">2.5 Query String 查询</h3>
+    <p class="mb-2">Query String 查询提供了一种紧凑的方式来使用查询语法进行搜索，允许用户使用操作符（AND、OR、NOT）和通配符等。</p>
+  
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "query_string": {
+      "query": "elasticsearch AND (guide OR tutorial)",
+      "fields": ["title", "content"]
+    }
+  }
+}</code></pre>
+
+    <p class="mt-2">支持的语法包括：</p>
+    <ul class="list-disc list-inside ml-4">
+        <li>逻辑操作符：<code>AND</code>, <code>OR</code>, <code>NOT</code></li>
+        <li>字段限定：<code>title:elasticsearch</code></li>
+        <li>通配符：<code>elastic*</code>, <code>?earch</code></li>
+        <li>正则表达式：<code>/elastics[ae]arch/</code></li>
+        <li>模糊匹配：<code>elasticsearch~2</code></li>
+        <li>范围查询：<code>age:[20 TO 30]</code>, <code>date:{2020-01-01 TO 2020-12-31}</code></li>
+    </ul>
+</section>
+</section>
+
+<section id="aggregation-basics" class="mb-10">
+    <h2 class="text-2xl font-semibold text-indigo-700 mb-4">
+        <i class="fas fa-chart-pie mr-2"></i>3. 聚合基础
+    </h2>
+    <p class="mb-4">聚合提供了分组和提取数据的能力。聚合可以看作是SQL中GROUP BY和聚合函数的Elasticsearch等价物。</p>
+  
+    <div class="mb-6">
+        <div class="mermaid">
+        graph LR
+            A[Elasticsearch聚合] --> B[Bucket聚合]
+            A --> C[Metric聚合]
+            A --> D[Pipeline聚合]
+            A --> E[Matrix聚合]
+            B --> F[Terms]
+            B --> G[Date Range]
+            B --> H[Histogram]
+            C --> I[Sum]
+            C --> J[Avg]
+            C --> K[Stats]
+            D --> L[Avg Bucket]
+            D --> M[Cumulative Sum]
+        </div>
+    </div>
+  
+    <p class="mb-4">聚合语法的基本结构：</p>
+  
+<pre><code>{
+  "aggs": {
+    "聚合名称": {
+      "聚合类型": {
+        "字段": "字段名称",
+        "其他参数": "值"
+      }
+    }
+  }
+}</code></pre>
+
+    <section id="bucket-aggs" class="mt-6 mb-6">
+        <h3 class="text-xl font-semibold text-indigo-600 mb-3">3.1 Bucket 聚合</h3>
+        <p class="mb-2">Bucket 聚合将文档分组到不同的桶(buckets)中，类似于 SQL 中的 GROUP BY。</p>
+      
+        <h4 class="font-medium text-indigo-700 mt-4 mb-2">Terms 聚合</h4>
+        <p class="mb-2">创建基于字段值的分组：</p>
+      
+<pre><code>GET /my_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "status_counts": {
+      "terms": {
+        "field": "status.keyword",
+        "size": 10
+      }
+    }
+  }
+}</code></pre>
+
+        <p class="mt-2">上面的查询会返回按 status 字段分组的文档计数。</p>
+      
+        <h4 class="font-medium text-indigo-700 mt-4 mb-2">Date Histogram 聚合</h4>
+        <p class="mb-2">按时间间隔分组：</p>
+      
+<pre><code>GET /my_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "articles_over_time": {
+      "date_histogram": {
+        "field": "publish_date",
+        "calendar_interval": "month",
+        "format": "yyyy-MM"
+      }
+    }
+  }
+}</code></pre>
+
+        <h4 class="font-medium text-indigo-700 mt-4 mb-2">Range 聚合</h4>
+        <p class="mb-2">创建自定义范围的桶：</p>
+      
+<pre><code>GET /my_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "age_ranges": {
+      "range": {
+        "field": "age",
+        "ranges": [
+          { "to": 25 },
+          { "from": 25, "to": 35 },
+          { "from": 35 }
+        ]
+      }
+    }
+  }
+}</code></pre>
+    </section>
+  
+    <section id="metric-aggs" class="mb-6">
+        <h3 class="text-xl font-semibold text-indigo-600 mb-3">3.2 Metric 聚合</h3>
+        <p class="mb-2">Metric 聚合计算一组文档的各种指标，类似于 SQL 中的聚合函数（SUM, AVG, MIN, MAX等）。</p>
+      
+        <h4 class="font-medium text-indigo-700 mt-4 mb-2">基本度量聚合</h4>
+      
+<pre><code>GET /my_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "avg_age": { "avg": { "field": "age" } },
+    "max_age": { "max": { "field": "age" } },
+    "min_age": { "min": { "field": "age" } },
+    "sum_age": { "sum": { "field": "age" } }
+  }
+}</code></pre>
+
+        <h4 class="font-medium text-indigo-700 mt-4 mb-2">Stats 聚合</h4>
+        <p class="mb-2">一次计算多个统计指标：</p>
+      
+<pre><code>GET /my_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "age_stats": {
+      "stats": {
+        "field": "age"
+      }
+    }
+  }
+}</code></pre>
+
+        <p class="mt-2">返回字段的 count、min、max、avg 和 sum。</p>
+      
+        <h4 class="font-medium text-indigo-700 mt-4 mb-2">Cardinality 聚合</h4>
+        <p class="mb-2">计算字段的大致基数（不同值的数量）：</p>
+      
+<pre><code>GET /my_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "unique_statuses": {
+      "cardinality": {
+        "field": "status.keyword"
+      }
+    }
+  }
+}</code></pre>
+    </section>
+  
+    <section id="pipeline-aggs" class="mb-6">
+        <h3 class="text-xl font-semibold text-indigo-600 mb-3">3.3 Pipeline 聚合</h3>
+        <p class="mb-2">Pipeline 聚合对其他聚合的输出进行操作，而不是直接对文档进行操作。</p>
+      
+        <h4 class="font-medium text-indigo-700 mt-4 mb-2">Avg Bucket 聚合</h4>
+        <p class="mb-2">计算另一个聚合中各个桶的平均值：</p>
+      
+<pre><code>GET /my_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "sales_per_month": {
+      "date_histogram": {
+        "field": "date",
+        "calendar_interval": "month"
+      },
+      "aggs": {
+        "sales": {
+          "sum": {
+            "field": "price"
+          }
+        }
+      }
+    },
+    "avg_monthly_sales": {
+      "avg_bucket": {
+        "buckets_path": "sales_per_month>sales"
+      }
+    }
+  }
+}</code></pre>
+
+        <h4 class="font-medium text-indigo-700 mt-4 mb-2">Cumulative Sum 聚合</h4>
+        <p class="mb-2">计算累计和：</p>
+      
+<pre><code>GET /my_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "sales_per_month": {
+      "date_histogram": {
+        "field": "date",
+        "calendar_interval": "month"
+      },
+      "aggs": {
+        "sales": {
+          "sum": {
+            "field": "price"
+          }
+        },
+        "cumulative_sales": {
+          "cumulative_sum": {
+            "buckets_path": "sales"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mt-3">
+            <div class="flex">
+                <div class="mr-3 text-blue-500">
+                    <i class="fas fa-info-circle text-xl"></i>
+                </div>
+                <p class="text-sm text-blue-700">
+                    <strong>关键知识点：</strong> Pipeline 聚合中的 <code>buckets_path</code> 参数用于指定要处理的聚合路径，格式为 <code>聚合名称>子聚合名称</code>。
+                </p>
+            </div>
+        </div>
+    </section>
+</section>
+
+<section id="combined-query-agg" class="mb-10">
+    <h2 class="text-2xl font-semibold text-indigo-700 mb-4">
+        <i class="fas fa-code-branch mr-2"></i>4. 组合查询与聚合
+    </h2>
+    <p class="mb-4">实际应用中，通常需要结合查询和聚合，对过滤后的数据集进行分析。</p>
+  
+<pre><code>GET /my_index/_search
+{
+  "size": 0,
+  "query": {
+    "range": {
+      "date": {
+        "gte": "2020-01-01",
+        "lte": "2020-12-31"
+      }
+    }
+  },
+  "aggs": {
+    "categories": {
+      "terms": {
+        "field": "category.keyword",
+        "size": 10
+      },
+      "aggs": {
+        "avg_price": {
+          "avg": {
+            "field": "price"
+          }
+        },
+        "top_products": {
+          "top_hits": {
+            "size": 3,
+            "_source": ["name", "price"],
+            "sort": [
+              { "price": { "order": "desc" } }
+            ]
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+
+    <p class="mt-4">上面的示例：</p>
+    <ol class="list-decimal list-inside ml-4 mb-4">
+        <li>查询 2020 年的所有文档</li>
+        <li>按类别进行分组</li>
+        <li>计算每个类别的平均价格</li>
+        <li>返回每个类别中价格最高的三个产品</li>
+    </ol>
+  
+    <div class="bg-indigo-50 p-4 rounded-lg mb-4">
+        <p class="font-medium text-indigo-800">嵌套聚合的应用场景：</p>
+        <ul class="list-disc list-inside ml-4 mt-2">
+            <li>多维数据分析</li>
+            <li>时间序列数据的趋势分析</li>
+            <li>按类别的销售数据分析</li>
+            <li>层次结构数据的展示</li>
+        </ul>
+    </div>
+</section>
+
+<section id="pagination-sorting" class="mb-10">
+    <h2 class="text-2xl font-semibold text-indigo-700 mb-4">
+        <i class="fas fa-sort mr-2"></i>5. 分页与排序
+    </h2>
+    <p class="mb-4">处理大量搜索结果时，分页和排序是必不可少的功能。</p>
+  
+    <h3 class="text-xl font-semibold text-indigo-600 mb-3">基础分页</h3>
+    <p class="mb-2">使用 from 和 size 参数进行分页：</p>
+  
+
+  <pre><code>GET /my_index/_search
+{
+  "from": 10,  // 跳过前10个结果
+  "size": 20,  // 返回20个结果
+  "query": {
+    "match": {
+      "content": "elasticsearch"
+    }
+  }
+}</code></pre>
+
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-3">
+        <p class="text-sm text-yellow-700">
+            <strong>注意：</strong> 深度分页（大的 from 值）可能会导致性能问题。Elasticsearch 默认限制 from + size 不能超过 10,000。对于大型结果集，建议使用 <code>search_after</code> 或滚动 API。
+        </p>
+    </div>
+  
+    <h3 class="text-xl font-semibold text-indigo-600 mt-6 mb-3">排序</h3>
+    <p class="mb-2">使用 sort 参数指定排序字段和顺序：</p>
+  
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "match_all": {}
+  },
+  "sort": [
+    { "publish_date": { "order": "desc" } },
+    { "rating": { "order": "desc" } },
+    "_score"
+  ]
+}</code></pre>
+
+    <p class="mt-2">排序字段需要是数字、日期或 keyword 类型。对于文本字段，通常使用其 .keyword 子字段进行排序。</p>
+  
+    <h3 class="text-xl font-semibold text-indigo-600 mt-6 mb-3">Search After</h3>
+    <p class="mb-2">对于深度分页，可以使用 search_after 实现点对点的分页，避免性能问题：</p>
+  
+<pre><code>GET /my_index/_search
+{
+  "size": 10,
+  "query": {
+    "match": {
+      "content": "elasticsearch"
+    }
+  },
+  "sort": [
+    { "publish_date": { "order": "desc" } },
+    { "_id": { "order": "asc" } }
+  ],
+  "search_after": [1589570400000, "doc_id_123"]
+}</code></pre>
+
+    <p class="mt-2">search_after 参数基于上一个请求返回的最后一个文档的排序值。</p>
+</section>
+
+<section id="highlighting" class="mb-10">
+    <h2 class="text-2xl font-semibold text-indigo-700 mb-4">
+        <i class="fas fa-highlighter mr-2"></i>6. 高亮搜索结果
+    </h2>
+    <p class="mb-4">搜索结果高亮功能可以让用户更容易看到匹配的内容。</p>
+  
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "match": {
+      "content": "elasticsearch"
+    }
+  },
+  "highlight": {
+    "fields": {
+      "content": {}
+    },
+    "pre_tags": ["<strong>"],
+    "post_tags": ["</strong>"]
+  }
+}</code></pre>
+
+    <p class="mt-4">高亮显示的自定义选项：</p>
+    <ul class="list-disc list-inside ml-4 mb-4">
+        <li><code>fragment_size</code>：每个高亮片段的字符数</li>
+        <li><code>number_of_fragments</code>：返回的片段数量</li>
+        <li><code>require_field_match</code>：是否只高亮与查询匹配的字段</li>
+        <li><code>highlight_query</code>：自定义高亮查询</li>
+    </ul>
+  
+    <div class="bg-green-50 border-l-4 border-green-400 p-4 mt-3">
+        <div class="flex">
+            <div class="mr-3 text-green-500">
+                <i class="fas fa-lightbulb text-xl"></i>
+            </div>
+            <p class="text-sm text-green-700">
+                <strong>提示：</strong> 对于长文本内容，可以使用 <code>no_match_size</code> 参数控制不匹配部分的显示大小，以提供更好的上下文。
+            </p>
+        </div>
+    </div>
+</section>
+
+<section id="performance-tips" class="mb-10">
+    <h2 class="text-2xl font-semibold text-indigo-700 mb-4">
+        <i class="fas fa-bolt mr-2"></i>7. 性能优化提示
+    </h2>
+    <p class="mb-4">查询和聚合操作可能很耗资源，以下是一些优化性能的建议：</p>
+  
+    <div class="grid md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-indigo-50 p-4 rounded-lg">
+            <h3 class="font-medium text-indigo-800 mb-2">查询优化</h3>
+            <ul class="list-disc list-inside ml-2">
+                <li>优先使用 filter 而非 must，可缓存结果</li>
+                <li>尽量避免使用通配符前缀查询（例如 *search）</li>
+                <li>使用更具体的查询而非宽泛的查询</li>
+                <li>对于大型数据集使用合适的分页策略</li>
+            </ul>
+        </div>
+        <div class="bg-indigo-50 p-4 rounded-lg">
+            <h3 class="font-medium text-indigo-800 mb-2">聚合优化</h3>
+            <ul class="list-disc list-inside ml-2">
+                <li>在聚合之前应用筛选条件</li>
+                <li>限制聚合桶的数量（terms.size）</li>
+                <li>使用日期直方图时选择合适的时间间隔</li>
+                <li>对不需要的搜索结果使用 size: 0</li>
+            </ul>
+        </div>
+    </div>
+  
+    <h3 class="text-xl font-semibold text-indigo-600 mb-3">使用 Filter Context</h3>
+    <p class="mb-2">将不影响相关性评分的条件放入 filter context：</p>
+  
+<pre><code>GET /my_index/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        { "match": { "title": "elasticsearch" } }
+      ],
+      "filter": [
+        { "term": { "status": "published" } },
+        { "range": { "publish_date": { "gte": "now-1y" } } }
+      ]
+    }
+  }
+}</code></pre>
+
+    <h3 class="text-xl font-semibold text-indigo-600 mt-6 mb-3">索引和字段映射优化</h3>
+    <ul class="list-disc list-inside ml-4 mb-4">
+        <li>为需要聚合的字段启用 <code>doc_values</code>（默认启用）</li>
+        <li>为需要全文搜索的字段启用合适的分析器</li>
+        <li>对不需要分析的字段使用 <code>keyword</code> 类型</li>
+        <li>适当使用 <code>text</code> 字段的 <code>fielddata</code>（注意内存消耗）</li>
+    </ul>
+</section>
+
+<section id="conclusion" class="mb-10">
+    <h2 class="text-2xl font-semibold text-indigo-700 mb-4">
+        <i class="fas fa-flag-checkered mr-2"></i>8. 总结
+    </h2>
+    <p class="mb-4">Elasticsearch 的查询和聚合功能强大而灵活，能够满足各种复杂的搜索和数据分析需求。</p>
+  
+    <div class="bg-indigo-50 p-4 rounded-lg mb-6">
+        <p class="font-medium text-indigo-800 mb-2">查询与聚合基础要点：</p>
+        <ul class="list-disc list-inside ml-4">
+            <li>理解查询类型的差异（match vs term）</li>
+            <li>掌握 bool 查询组合多个条件</li>
+            <li>使用 bucket 聚合进行数据分组</li>
+            <li>使用 metric 聚合计算统计数据</li>
+            <li>组合查询和聚合进行复杂数据分析</li>
+            <li>应用合适的分页和排序策略</li>
+            <li>注意性能优化，特别是大数据量场景</li>
+        </ul>
+    </div>
+  
+    <p>随着对 Elasticsearch 的深入了解，您可以探索更高级的功能，如跨集群搜索、搜索模板、异步搜索以及机器学习集成等。</p>
+</section>
+            </article>
+        </main>
+    </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // 初始化Mermaid图表
-            mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
-            
-            // 代码复制功能
-            document.querySelectorAll('.copy-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const codeBlock = this.previousElementSibling;
-                    const code = codeBlock.textContent;
-                    navigator.clipboard.writeText(code).then(() => {
-                        const originalText = this.textContent;
-                        this.textContent = '已复制!';
-                        setTimeout(() => {
-                            this.textContent = originalText;
-                        }, 2000);
-                    });
-                });
-            });
-            
-            // 响应式调整
-            function adjustForMobile() {
-                if (window.innerWidth < 768) {
-                    document.querySelectorAll('.mermaid-diagram').forEach(diagram => {
-                        diagram.style.transform = 'scale(0.8)';
-                        diagram.style.transformOrigin = 'left top';
-                    });
-                } else {
-                    document.querySelectorAll('.mermaid-diagram').forEach(diagram => {
-                        diagram.style.transform = 'none';
+        // Mermaid initialization
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true },
+            securityLevel: 'loose'
+        });
+      
+        // Mobile menu toggle
+        const menuToggle = document.getElementById('menu-toggle');
+        const closeMenu = document.getElementById('close-menu');
+        const sidebar = document.getElementById('sidebar');
+      
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.add('open');
+        });
+      
+        closeMenu.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+        });
+      
+        // Active link tracking
+        const tocLinks = document.querySelectorAll('.toc-link');
+        const sections = document.querySelectorAll('section[id]');
+      
+        function setActiveLink() {
+            let scrollPosition = window.scrollY;
+          
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 100;
+                const sectionHeight = section.offsetHeight;
+                const sectionId = section.getAttribute('id');
+              
+                if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
+                    tocLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + sectionId) {
+                            link.classList.add('active');
+                        }
                     });
                 }
-            }
-            
-            window.addEventListener('resize', adjustForMobile);
-            adjustForMobile();
+            });
+        }
+      
+        window.addEventListener('scroll', setActiveLink);
+      
+        // Smooth scrolling for TOC links
+        tocLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                const offsetTop = targetElement.offsetTop;
+              
+                window.scrollTo({
+                    top: offsetTop - 20,
+                    behavior: 'smooth'
+                });
+              
+                // On mobile, close the menu after clicking a link
+                if (window.innerWidth < 1024) {
+                    sidebar.classList.remove('open');
+                }
+            });
         });
+      
+        // Initial call to set active link
+        setActiveLink();
     </script>
 </body>
 </html>
