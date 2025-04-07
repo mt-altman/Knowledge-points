@@ -181,6 +181,7 @@ def generate_docs_index_html(topics):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-adsense-account" content="ca-pub-3879514184430377">
     <title>技术文档中心</title>
     <style>
         * {{

@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dubbo技术概念解析</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: 'Roboto', sans-serif; }
+    .accent-color { color: #ff7043; }
+    .highlight { color: #1e40af; font-weight: bold; }
+    .card-title { font-size: 1.5rem; font-weight: bold; color: white; }
+    pre code { counter-reset: line; }
+    pre code > span { counter-increment: line; }
+    pre code > span::before {
+      content: counter(line);
+      display: inline-block;
+      width: 1.5rem;
+      margin-right: 1rem;
+      text-align: right;
+      color: #888;
+    }
+    .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out; }
+    .collapsible-content.active { max-height: 2000px; }
+    .mermaid { background-color: white; padding: 1rem; border-radius: 0.5rem; }
+    .copy-btn { transition: all 0.2s; }
+    .copy-btn:hover { background-color: #1e40af; color: white; }
+  /* 返回首页按钮样式 */
+        .home-button-fixed {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .home-button-fixed:hover {
+            background-color: #2980b9;
+            transform: translateY(-50%) translateX(2px);
+        }
+        .home-button-fixed svg {
+            width: 20px;
+            height: 20px;
+        }
+        @media (max-width: 768px) {
+            .home-button-fixed {
+                top: 50%;
+                left: 10px;
+                width: 36px;
+                height: 36px;
+            }
+            .home-button-fixed svg {
+                width: 18px;
+                height: 18px;
+            }
+        }</style>
+</head>
+<body class="bg-gray-100"><a href="../index.html" class="home-button-fixed" title="返回首页"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+  <div class="container mx-auto p-4">
+    <div class="card bg-white rounded-3xl shadow-lg mb-8">
+      <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-6 rounded-t-3xl flex items-center">
+        <i class="mr-3" data-lucide="layers" width="36" height="36" stroke="white"></i>
+        <h1 class="card-title">Dubbo (Apache Dubbo) 技术概念解析</h1>
+      </div>
+      <div class="p-6 bg-gray-50">
+      
+        <!-- 术语定义 -->
+        <section class="mb-8">
+          <div class="flex items-center mb-4 cursor-pointer collapsible-header" data-section="definition">
+            <i class="mr-2" data-lucide="book-open" width="24" height="24"></i>
+            <h2 class="text-2xl font-bold">术语定义</h2>
+            <i class="ml-2" data-lucide="chevron-down" width="20" height="20"></i>
+          </div>
+          <div class="collapsible-content active" id="definition-content">
+            <p class="mb-4 text-lg">
+              <span class="highlight">Dubbo</span> (<span class="text-gray-500">Apache Dubbo</span>) 是一个高性能、轻量级的开源<span class="highlight">分布式服务框架</span>（<span class="text-gray-600">Distributed Service Framework</span>），专为解决<span class="highlight">微服务</span>（<span class="text-gray-600">Microservices</span>）架构下的服务治理问题而设计。
+            </p>
+            <p class="mb-4">
+              Dubbo提供了六大核心能力：面向接口的<span class="highlight">远程方法调用</span>（<span class="text-gray-600">Remote Procedure Call, RPC</span>）、智能<span class="highlight">负载均衡</span>（<span class="text-gray-600">Load Balancing</span>）、<span class="highlight">服务自动注册与发现</span>（<span class="text-gray-600">Service Registration & Discovery</span>）、高度可扩展性、运行期<span class="highlight">流量调度</span>（<span class="text-gray-600">Traffic Routing</span>）和可视化的<span class="highlight">服务治理</span>（<span class="text-gray-600">Service Governance</span>）。
+            </p>
+          
+            <div class="bg-white p-4 rounded-xl shadow mb-4">
+              <h3 class="text-xl font-bold mb-3">Dubbo核心概念信息图</h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-800">
+                  <h4 class="font-bold text-blue-800">服务定义</h4>
+                  <p>将业务接口作为服务，实现远程透明调用</p>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-800">
+                  <h4 class="font-bold text-blue-800">地址发现</h4>
+                  <p>基于注册中心实现服务自动发现</p>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-800">
+                  <h4 class="font-bold text-blue-800">负载均衡</h4>
+                  <p>多种策略分发请求到不同提供者</p>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-800">
+                  <h4 class="font-bold text-blue-800">集群容错</h4>
+                  <p>服务降级、失败重试等高可用机制</p>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-800">
+                  <h4 class="font-bold text-blue-800">可扩展性</h4>
+                  <p>基于SPI机制的插件化架构</p>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-800">
+                  <h4 class="font-bold text-blue-800">治理中心</h4>
+                  <p>可视化服务调用与性能监控</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      
+        <!-- 实现细节 -->
+        <section class="mb-8">
+          <div class="flex items-center mb-4 cursor-pointer collapsible-header" data-section="implementation">
+            <i class="mr-2" data-lucide="settings" width="24" height="24"></i>
+            <h2 class="text-2xl font-bold">实现细节</h2>
+            <i class="ml-2" data-lucide="chevron-down" width="20" height="20"></i>
+          </div>
+          <div class="collapsible-content active" id="implementation-content">
+            <h3 class="text-xl font-bold mb-3">Dubbo核心工作原理</h3>
+            <p class="mb-4">
+              Dubbo采用全链路异步通信机制，基于<span class="highlight">服务消费者</span>（<span class="text-gray-600">Consumer</span>）和<span class="highlight">服务提供者</span>（<span class="text-gray-600">Provider</span>）模式实现高性能RPC调用。整个调用过程中，Dubbo通过<span class="highlight">注册中心</span>（<span class="text-gray-600">Registry</span>）实现服务的注册与发现，并通过<span class="highlight">监控中心</span>（<span class="text-gray-600">Monitor</span>）收集调用统计。
+            </p>
+          
+            <h3 class="text-xl font-bold mb-3">核心组件及功能</h3>
+            <ul class="list-disc ml-6 mb-6">
+              <li class="mb-2"><span class="font-bold">服务提供者（Provider）</span>：暴露服务的服务提供方，向注册中心注册自己的服务</li>
+              <li class="mb-2"><span class="font-bold">服务消费者（Consumer）</span>：调用远程服务的服务消费方，从注册中心订阅服务</li>
+              <li class="mb-2"><span class="font-bold">注册中心（Registry）</span>：服务注册与发现的中心化组件，如Zookeeper、Nacos等</li>
+              <li class="mb-2"><span class="font-bold">监控中心（Monitor）</span>：统计服务调用次数和调用时间的监控中心</li>
+              <li class="mb-2"><span class="font-bold">配置中心（Config Center）</span>：外部化配置和服务治理规则存储</li>
+              <li class="mb-2"><span class="font-bold">元数据中心（Metadata Center）</span>：服务接口元数据信息存储</li>
+            </ul>
+          
+            <h3 class="text-xl font-bold mb-3">Dubbo工作流程图</h3>
+            <div class="mermaid mb-6">
+flowchart TD
+    A[开始] --> B[启动Provider]
+    B --> C[Provider向注册中心注册]
+    D[Consumer启动] --> E[从注册中心订阅服务]
+    E --> F[注册中心通知Consumer]
+    F --> G{进行RPC调用}
+    G -->|直接调用| H[Provider处理请求]
+    G -->|异步调用| I[返回Future]
+    H --> J[返回结果]
+    I --> K[异步获取结果]
+    J --> L[Monitor统计]
+    K --> L
+    L --> M[结束]
+            </div>
+          
+            <h3 class="text-xl font-bold mb-3">Dubbo代码组织结构</h3>
+            <div class="mermaid">
+flowchart TD
+    A[dubbo-parent] --> B[dubbo-common]
+    A --> C[dubbo-serialization]
+    A --> D[dubbo-remoting]
+    A --> E[dubbo-rpc]
+    A --> F[dubbo-registry]
+    A --> G[dubbo-config]
+    A --> H[dubbo-cluster]
+    A --> I[dubbo-monitor]
+    A --> J[dubbo-filter]
+    A --> K[dubbo-bootstrap]
+    G --> G1[dubbo-config-api]
+    G --> G2[dubbo-config-spring]
+            </div>
+          </div>
+        </section>
+      
+        <!-- 应用场景 -->
+        <section class="mb-8">
+          <div class="flex items-center mb-4 cursor-pointer collapsible-header" data-section="use-cases">
+            <i class="mr-2" data-lucide="layout" width="24" height="24"></i>
+            <h2 class="text-2xl font-bold">应用场景</h2>
+            <i class="ml-2" data-lucide="chevron-down" width="20" height="20"></i>
+          </div>
+          <div class="collapsible-content active" id="use-cases-content">
+          
+            <!-- 场景1 -->
+            <div class="bg-white rounded-xl shadow p-4 mb-6">
+              <h3 class="text-xl font-bold mb-3 accent-color">场景一：电商系统微服务架构</h3>
+              <p class="mb-4">电商系统需要拆分为订单、库存、用户、支付等多个微服务，并需要高性能的服务间通信。</p>
+            
+              <div class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-bold">Java实现示例：订单服务调用库存服务</h4>
+                  <button class="copy-btn px-3 py-1 rounded bg-gray-200 text-sm" data-code="code1">复制代码</button>
+                </div>
+              
+                <pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto"><code id="code1">
+<span>// 1. 定义服务接口（放在公共模块中供消费者和提供者共享）</span>
+<span>public interface InventoryService {</span>
+<span>    /**</span>
+<span>     * 检查商品库存</span>
+<span>     * @param productId 商品ID</span>
+<span>     * @param quantity 数量</span>
+<span>     * @return 是否有足够库存</span>
+<span>     */</span>
+<span>    boolean checkStock(Long productId, Integer quantity);</span>
+<span>    </span>
+<span>    /**</span>
+<span>     * 扣减库存</span>
+<span>     * @param productId 商品ID</span>
+<span>     * @param quantity 数量</span>
+<span>     * @return 操作结果</span>
+<span>     */</span>
+<span>    boolean reduceStock(Long productId, Integer quantity);</span>
+<span>}</span>
+<span></span>
+<span>// 2. 服务提供者实现（库存服务）</span>
+<span>@DubboService(version = "1.0.0")</span>
+<span>public class InventoryServiceImpl implements InventoryService {</span>
+<span>    </span>
+<span>    @Override</span>
+<span>    public boolean checkStock(Long productId, Integer quantity) {</span>
+<span>        // 实际业务逻辑：检查数据库中的库存</span>
+<span>        System.out.println("检查商品ID: " + productId + " 库存, 请求数量: " + quantity);</span>
+<span>        return true; // 示例返回</span>
+<span>    }</span>
+<span>    </span>
+<span>    @Override</span>
+<span>    public boolean reduceStock(Long productId, Integer quantity) {</span>
+<span>        // 实际业务逻辑：在数据库中扣减库存</span>
+<span>        System.out.println("扣减商品ID: " + productId + " 库存, 数量: " + quantity);</span>
+<span>        return true; // 示例返回</span>
+<span>    }</span>
+<span>}</span>
+<span></span>
+<span>// 3. 服务消费者调用（订单服务）</span>
+<span>@RestController</span>
+<span>@RequestMapping("/orders")</span>
+<span>public class OrderController {</span>
+<span>    </span>
+<span>    @DubboReference(version = "1.0.0", check = false)</span>
+<span>    private InventoryService inventoryService;</span>
+<span>    </span>
+<span>    @PostMapping("/create")</span>
+<span>    public String createOrder(@RequestBody OrderDTO orderDTO) {</span>
+<span>        // 检查库存</span>
+<span>        boolean hasStock = inventoryService.checkStock(orderDTO.getProductId(), orderDTO.getQuantity());</span>
+<span>        if (!hasStock) {</span>
+<span>            return "库存不足";</span>
+<span>        }</span>
+<span>        </span>
+<span>        // 扣减库存</span>
+<span>        boolean reduced = inventoryService.reduceStock(orderDTO.getProductId(), orderDTO.getQuantity());</span>
+<span>        if (!reduced) {</span>
+<span>            return "扣减库存失败";</span>
+<span>        }</span>
+<span>        </span>
+<span>        // 创建订单等其他逻辑...</span>
+<span>        return "订单创建成功";</span>
+<span>    }</span>
+<span>}</span>
+                </code></pre>
+                <div class="text-center mt-2">
+                  <a href="https://start.dubbo.apache.org/bootstrap.html" target="_blank" class="bg-orange-500 text-white px-4 py-2 rounded-lg inline-block hover:bg-orange-600">在线试用</a>
+                </div>
+              </div>
+            
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <h4 class="font-bold mb-2">运行结果说明：</h4>
+                <p>以上代码实现了订单服务作为消费者，通过Dubbo远程调用库存服务的功能。当用户下单时，订单服务会先检查库存，确认有足够库存后再进行库存扣减，整个过程对用户透明，就像调用本地方法一样简单。</p>
+              </div>
+            </div>
+          
+            <!-- 场景2 -->
+            <div class="bg-white rounded-xl shadow p-4 mb-6">
+              <h3 class="text-xl font-bold mb-3 accent-color">场景二：分布式系统的服务治理</h3>
+              <p class="mb-4">大型分布式系统需要对服务进行动态配置、流量控制和监控，以保证系统的稳定性。</p>
+            
+              <div class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-bold">服务限流配置示例</h4>
+                  <button class="copy-btn px-3 py-1 rounded bg-gray-200 text-sm" data-code="code2">复制代码</button>
+                </div>
+              
+                <pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto"><code id="code2">
+<span>// 1. 添加Dubbo依赖到项目中</span>
+<span>&lt;dependency&gt;</span>
+<span>    &lt;groupId&gt;org.apache.dubbo&lt;/groupId&gt;</span>
+<span>    &lt;artifactId&gt;dubbo&lt;/artifactId&gt;</span>
+<span>    &lt;version&gt;3.2.0&lt;/version&gt;</span>
+<span>&lt;/dependency&gt;</span>
+<span></span>
+<span>// 2. 配置服务限流（application.properties或application.yml）</span>
+<span>dubbo:</span>
+<span>  application:</span>
+<span>    name: payment-service</span>
+<span>  registry:</span>
+<span>    address: zookeeper://127.0.0.1:2181</span>
+<span>  protocol:</span>
+<span>    name: dubbo</span>
+<span>    port: 20880</span>
+<span>  provider:</span>
+<span>    filter: myRateLimiter</span>
+<span></span>
+<span>// 3. 自定义限流过滤器</span>
+<span>@Activate(group = {CommonConstants.PROVIDER})</span>
+<span>public class RateLimiterFilter implements Filter {</span>
+<span>    </span>
+<span>    // 使用Google Guava的RateLimiter实现限流</span>
+<span>    private static final RateLimiter RATE_LIMITER = RateLimiter.create(100.0); // 每秒允许100个请求</span>
+<span>    </span>
+<span>    @Override</span>
+<span>    public Result invoke(Invoker&lt;?&gt; invoker, Invocation invocation) throws RpcException {</span>
+<span>        // 尝试获取令牌，如果在1秒内无法获取，则拒绝请求</span>
+<span>        if (!RATE_LIMITER.tryAcquire(1, 1, TimeUnit.SECONDS)) {</span>
+<span>            throw new RpcException("系统繁忙，请稍后再试");</span>
+<span>        }</span>
+<span>        </span>
+<span>        // 继续调用</span>
+<span>        return invoker.invoke(invocation);</span>
+<span>    }</span>
+<span>}</span>
+<span></span>
+<span>// 4. 在SPI配置文件中声明过滤器</span>
+<span>// 在resources/META-INF/dubbo/org.apache.dubbo.rpc.Filter文件中添加：</span>
+<span>myRateLimiter=com.example.filter.RateLimiterFilter</span>
+                </code></pre>
+                <div class="text-center mt-2">
+                  <a href="https://dubbo.apache.org/zh-cn/overview/mannual/java-sdk/advanced-features-and-usage/service/service-container" target="_blank" class="bg-orange-500 text-white px-4 py-2 rounded-lg inline-block hover:bg-orange-600">在线试用</a>
+                </div>
+              </div>
+            
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <h4 class="font-bold mb-2">实现效果：</h4>
+                <p>上述代码实现了一个基于Dubbo过滤器的限流功能。当系统请求量超过每秒100个请求时，多余的请求会被拒绝，从而保护系统不被过载。这种服务治理能力使得系统在高并发场景下依然能够保持稳定。</p>
+              </div>
+            </div>
+          
+            <!-- 场景3 -->
+            <div class="bg-white rounded-xl shadow p-4 mb-6">
+              <h3 class="text-xl font-bold mb-3 accent-color">场景三：多协议支持的跨语言服务调用</h3>
+              <p class="mb-4">现代系统常常是多语言构建的，需要支持不同语言间的服务调用。</p>
+            
+              <div class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-bold">多协议配置示例</h4>
+                  <button class="copy-btn px-3 py-1 rounded bg-gray-200 text-sm" data-code="code3">复制代码</button>
+                </div>
+              
+                <pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto"><code id="code3">
+<span>// Java端暴露多协议服务</span>
+<span>@Configuration</span>
+<span>public class DubboConfig {</span>
+<span>    </span>
+<span>    @Bean</span>
+<span>    public ProtocolConfig dubboProtocol() {</span>
+<span>        // 配置dubbo协议</span>
+<span>        ProtocolConfig protocolConfig = new ProtocolConfig();</span>
+<span>        protocolConfig.setName("dubbo");</span>
+<span>        protocolConfig.setPort(20880);</span>
+<span>        protocolConfig.setThreads(200);</span>
+<span>        return protocolConfig;</span>
+<span>    }</span>
+<span>    </span>
+<span>    @Bean</span>
+<span>    public ProtocolConfig tripleProtocol() {</span>
+<span>        // 配置Triple协议（基于HTTP/2的新一代RPC协议）</span>
+<span>        ProtocolConfig protocolConfig = new ProtocolConfig();</span>
+<span>        protocolConfig.setName("tri");</span>
+<span>        protocolConfig.setPort(50051);</span>
+<span>        return protocolConfig;</span>
+<span>    }</span>
+<span>    </span>
+<span>    @Bean</span>
+<span>    public ProtocolConfig restProtocol() {</span>
+<span>        // 配置REST协议（HTTP）</span>
+<span>        ProtocolConfig protocolConfig = new ProtocolConfig();</span>
+<span>        protocolConfig.setName("rest");</span>
+<span>        protocolConfig.setPort(8080);</span>
+<span>        protocolConfig.setServer("netty");</span>
+<span>        return protocolConfig;</span>
+<span>    }</span>
+<span>}</span>
+<span></span>
+<span>// 服务实现类</span>
+<span>@DubboService(protocols = {"dubbo", "tri", "rest"})</span>
+<span>public class UserServiceImpl implements UserService {</span>
+<span>    // 服务实现</span>
+<span>}</span>
+<span></span>
+<span>// Go语言客户端调用示例</span>
+<span>package main</span>
+<span></span>
+<span>import (</span>
+<span>    "context"</span>
+<span>    "fmt"</span>
+<span>    "time"</span>
+<span></span>
+<span>    "dubbo.apache.org/dubbo-go/v3/config"</span>
+<span>    _ "dubbo.apache.org/dubbo-go/v3/imports"</span>
+<span>)</span>
+<span></span>
+<span>type UserService struct {</span>
+<span>    GetUser func(ctx context.Context, req *GetUserRequest) (*GetUserResponse, error)</span>
+<span>}</span>
+<span></span>
+<span>func main() {</span>
+<span>    // 初始化消费者配置</span>
+<span>    config.SetConsumerService(&UserService{})</span>
+<span>    if err := config.Load(); err != nil {</span>
+<span>        panic(err)</span>
+<span>    }</span>
+<span>    </span>
+<span>    // 获取服务</span>
+<span>    var userService *UserService</span>
+<span>    config.GetConsumerService(&userService)</span>
+<span>    </span>
+<span>    // 调用服务</span>
+<span>    req := &GetUserRequest{Id: 1}</span>
+<span>    resp, err := userService.GetUser(context.Background(), req)</span>
+<span>    if err != nil {</span>
+<span>        panic(err)</span>
+<span>    }</span>
+<span>    fmt.Printf("Response: %v\n", resp)</span>
+<span>}</span>
+                </code></pre>
+                <div class="text-center mt-2">
+                  <a href="https://dubbo.apache.org/zh-cn/overview/mannual/java-sdk/reference-manual/protocol/overview" target="_blank" class="bg-orange-500 text-white px-4 py-2 rounded-lg inline-block hover:bg-orange-600">在线试用</a>
+                </div>
+              </div>
+            
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <h4 class="font-bold mb-2">实现效果：</h4>
+                <p>上述示例展示了如何使用Dubbo配置多种协议（Dubbo原生协议、Triple协议和REST协议），使得同一个服务可以被不同语言、不同通信协议的客户端调用。示例中的Go语言客户端可以通过Triple协议调用Java服务，实现了跨语言服务调用。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      
+        <!-- 比较分析 -->
+        <section class="mb-8">
+          <div class="flex items-center mb-4 cursor-pointer collapsible-header" data-section="comparison">
+            <i class="mr-2" data-lucide="bar-chart-2" width="24" height="24"></i>
+            <h2 class="text-2xl font-bold">比较分析</h2>
+            <i class="ml-2" data-lucide="chevron-down" width="20" height="20"></i>
+          </div>
+          <div class="collapsible-content active" id="comparison-content">
+            <h3 class="text-xl font-bold mb-3">Dubbo与其他微服务框架比较</h3>
+          
+            <div class="overflow-x-auto bg-white rounded-xl shadow p-2 mb-6">
+              <table class="w-full table-auto">
+                <thead>
+                  <tr class="bg-blue-800 text-white">
+                    <th class="p-3 text-left">特性</th>
+                    <th class="p-3 text-left">Dubbo</th>
+                    <th class="p-3 text-left">Spring Cloud</th>
+                    <th class="p-3 text-left">gRPC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-b">
+                    <td class="p-3 font-bold">通信协议</td>
+                    <td class="p-3">多协议支持(Dubbo、REST、Triple等)</td>
+                    <td class="p-3">HTTP/REST</td>
+                    <td class="p-3">HTTP/2 + Protocol Buffers</td>
+                  </tr>
+                  <tr class="border-b bg-gray-50">
+                    <td class="p-3 font-bold">性能表现</td>
+                    <td class="p-3">高性能，专为RPC优化</td>
+                    <td class="p-3">中等，基于HTTP性能一般</td>
+                    <td class="p-3">高性能，基于HTTP/2</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="p-3 font-bold">生态系统</td>
+                    <td class="p-3">丰富，主要在Java生态圈内</td>
+                    <td class="p-3">非常丰富，Spring全家桶</td>
+                    <td class="p-3">跨语言，Google支持</td>
+                  </tr>
+                  <tr class="border-b bg-gray-50">
+                    <td class="p-3 font-bold">成熟度</td>
+                    <td class="p-3">高，阿里巴巴长期使用</td>
+                    <td class="p-3">高，Netflix长期使用</td>
+                    <td class="p-3">较高，Google长期使用</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="p-3 font-bold">使用门槛</td>
+                    <td class="p-3">中等</td>
+                    <td class="p-3">低，熟悉Spring的开发者容易上手</td>
+                    <td class="p-3">较高，需要了解Protocol Buffers</td>
+                  </tr>
+                  <tr class="border-b bg-gray-50">
+                    <td class="p-3 font-bold">服务治理</td>
+                    <td class="p-3">完善，内置服务治理功能</td>
+                    <td class="p-3">依赖组件集成，如Hystrix</td>
+                    <td class="p-3">基础功能，需额外集成</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-bold">适用场景</td>
+                    <td class="p-3">高性能RPC要求、大规模服务集群</td>
+                    <td class="p-3">REST API、Web应用、微服务生态</td>
+                    <td class="p-3">对性能要求高的跨语言场景</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <h3 class="text-xl font-bold mb-3">各框架优缺点图表对比</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div class="bg-white p-4 rounded-xl shadow">
+                <h4 class="font-bold text-center mb-3">Dubbo</h4>
+                <div>
+                  <h5 class="font-bold text-green-600 mb-1">优点</h5>
+                  <ul class="list-disc ml-4 mb-3">
+                    <li>高性能RPC调用</li>
+                    <li>完善的服务治理</li>
+                    <li>丰富的负载均衡策略</li>
+                    <li>成熟的集群容错</li>
+                    <li>可视化监控</li>
+                  </ul>
+                  <h5 class="font-bold text-red-600 mb-1">缺点</h5>
+                  <ul class="list-disc ml-4 mb-3">
+                    <li>配置相对复杂</li>
+                    <li>主要面向Java生态</li>
+                    <li>学习曲线较陡峭</li>
+                  </ul>
+                  <div class="mt-3">
+                    <p class="font-bold text-center mb-1">适用性评分</p>
+                    <div class="flex items-center justify-between text-sm mb-1">
+                      <span>大型系统</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-800 h-2.5 rounded-full" style="width: 100%"></div>
+                      </div>
+                      <span>5/5</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm mb-1">
+                      <span>中小项目</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-800 h-2.5 rounded-full" style="width: 60%"></div>
+                      </div>
+                      <span>3/5</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm">
+                      <span>简单项目</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-800 h-2.5 rounded-full" style="width: 40%"></div>
+                      </div>
+                      <span>2/5</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="bg-white p-4 rounded-xl shadow">
+                <h4 class="font-bold text-center mb-3">Spring Cloud</h4>
+                <div>
+                  <h5 class="font-bold text-green-600 mb-1">优点</h5>
+                  <ul class="list-disc ml-4 mb-3">
+                    <li>与Spring生态无缝集成</li>
+                    <li>组件丰富多样</li>
+                    <li>社区活跃，资料丰富</li>
+                    <li>基于HTTP易于理解</li>
+                    <li>对前端友好</li>
+                  </ul>
+                  <h5 class="font-bold text-red-600 mb-1">缺点</h5>
+                  <ul class="list-disc ml-4 mb-3">
+                    <li>性能不如二进制协议</li>
+                    <li>组件众多，版本兼容复杂</li>
+                    <li>资源消耗较大</li>
+                  </ul>
+                  <div class="mt-3">
+                    <p class="font-bold text-center mb-1">适用性评分</p>
+                    <div class="flex items-center justify-between text-sm mb-1">
+                      <span>大型系统</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-800 h-2.5 rounded-full" style="width: 80%"></div>
+                      </div>
+                      <span>4/5</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm mb-1">
+                      <span>中小项目</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-800 h-2.5 rounded-full" style="width: 100%"></div>
+                      </div>
+                      <span>5/5</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm">
+                      <span>简单项目</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-800 h-2.5 rounded-full" style="width: 60%"></div>
+                      </div>
+                      <span>3/5</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="bg-white p-4 rounded-xl shadow">
+                <h4 class="font-bold text-center mb-3">gRPC</h4>
+                <div>
+                  <h5 class="font-bold text-green-600 mb-1">优点</h5>
+                  <ul class="list-disc ml-4 mb-3">
+                    <li>极高性能</li>
+                    <li>强大的跨语言支持</li>
+                    <li>基于HTTP/2的流传输</li>
+                    <li>严格的接口定义</li>
+                    <li>代码生成工具</li>
+                  </ul>
+                  <h5 class="font-bold text-red-600 mb-1">缺点</h5>
+                  <ul class="list-disc ml-4 mb-3">
+                    <li>不易调试</li>
+                    <li>需要学习Protocol Buffers</li>
+                    <li>服务治理功能较弱</li>
+                  </ul>
+                  <div class="mt-3">
+                    <p class="font-bold text-center mb-1">适用性评分</p>
+                    <div class="flex items-center justify-between text-sm mb-1">
+                      <span>大型系统</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-800 h-2.5 rounded-full" style="width: 80%"></div>
+                      </div>
+                      <span>4/5</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm mb-1">
+                      <span>中小项目</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-800 h-2.5 rounded-full" style="width: 80%"></div>
+                      </div>
+                      <span>4/5</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm">
+                      <span>简单项目</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-800 h-2.5 rounded-full" style="width: 40%"></div>
+                      </div>
+                      <span>2/5</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <h3 class="text-xl font-bold mb-3">框架选型决策树</h3>
+            <div class="mermaid mb-4">
+flowchart TD
+    A[开始选型] --> B{是否主要在Java生态内?}
+    B -->|是| C{追求性能或大型分布式系统?}
+    B -->|否| D{需要跨语言支持?}
+    C -->|是| E[选择Dubbo]
+    C -->|否| F{需要简单易用的REST API?}
+    F -->|是| G[选择Spring Cloud]
+    F -->|否| E
+    D -->|是| H{对性能要求高?}
+    D -->|否| G
+    H -->|是| I[选择gRPC]
+    H -->|否| J{有完善的治理需求?}
+    J -->|是| K[选择Dubbo+Triple协议]
+    J -->|否| I
+            </div>
+          </div>
+        </section>
+        
+        <!-- 总结 -->
+        <section class="mb-8">
+          <div class="flex items-center mb-4 cursor-pointer collapsible-header" data-section="summary">
+            <i class="mr-2" data-lucide="check-circle" width="24" height="24"></i>
+            <h2 class="text-2xl font-bold">总结</h2>
+            <i class="ml-2" data-lucide="chevron-down" width="20" height="20"></i>
+          </div>
+          <div class="collapsible-content active" id="summary-content">
+            <h3 class="text-xl font-bold mb-3">Dubbo核心概念思维导图</h3>
+            <div class="mermaid mb-6">
+mindmap
+  root((Dubbo))
+    框架定位
+      分布式服务框架
+      面向微服务
+      高性能RPC
+    核心组件
+      服务提供者
+      服务消费者
+      注册中心
+        Zookeeper
+        Nacos
+        Redis
+      监控中心
+      配置中心
+    核心功能
+      服务发现
+      负载均衡
+        随机
+        轮询
+        最少活跃
+        一致性哈希
+      集群容错
+        Failover
+        Failfast
+        Failsafe
+        Failback
+        Forking
+      服务治理
+        限流降级
+        动态配置
+        实时监控
+    扩展能力
+      SPI机制
+      多协议支持
+      多注册中心
+            </div>
+            
+            <h3 class="text-xl font-bold mb-3">常见问题解答</h3>
+            <div class="bg-white p-4 rounded-xl shadow mb-6">
+              <div class="mb-4">
+                <h4 class="font-bold text-blue-800">1. Dubbo与Spring Cloud有什么区别？</h4>
+                <p>Dubbo专注于高性能RPC通信和服务治理，而Spring Cloud是完整的微服务解决方案。Dubbo性能更高但偏重Java生态，Spring Cloud基于HTTP，对前端友好且易于集成，但性能略低。Dubbo 3.0后增加了Triple协议支持多语言互通。</p>
+              </div>
+              <div class="mb-4">
+                <h4 class="font-bold text-blue-800">2. Dubbo支持哪些注册中心？</h4>
+                <p>Dubbo支持多种注册中心，包括Zookeeper、Nacos、Consul、etcd、Redis、Eureka等。其中Zookeeper和Nacos是最常用的选择。</p>
+              </div>
+              <div class="mb-4">
+                <h4 class="font-bold text-blue-800">3. Dubbo的负载均衡策略有哪些？</h4>
+                <p>Dubbo内置了多种负载均衡策略，包括随机(Random)、轮询(RoundRobin)、最少活跃调用数(LeastActive)、一致性哈希(ConsistentHash)、最短响应时间(ShortestResponse)等，默认为Random随机策略。</p>
+              </div>
+              <div class="mb-4">
+                <h4 class="font-bold text-blue-800">4. Dubbo如何保证服务高可用？</h4>
+                <p>Dubbo通过注册中心自动感知服务上下线，提供集群容错策略（如失败自动重试、快速失败等），支持服务降级和限流，以及健康检查机制，共同保障服务的高可用性。</p>
+              </div>
+              <div>
+                <h4 class="font-bold text-blue-800">5. Dubbo 3.0相比之前版本有哪些改进？</h4>
+                <p>Dubbo 3.0最重要的改进是引入了Triple协议，基于HTTP/2，支持多语言、多场景应用；增强了应用级服务发现；改进了异步编程体验；提供了观测性和指标体系；并实现了更强的云原生适配能力。</p>
+              </div>
+            </div>
+            
+            <h3 class="text-xl font-bold mb-3">最佳实践建议</h3>
+            <div class="space-y-3 mb-6">
+              <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-800">
+                <h4 class="font-bold">1. 接口设计遵循粗粒度原则</h4>
+                <p>将相关操作封装在一个接口方法中，减少网络请求次数。例如，创建订单时，一次性传递订单信息、物流信息等，而不是多次调用。</p>
+                <pre class="bg-gray-900 text-white p-2 rounded-lg mt-2 text-sm">
+// 推荐: 粗粒度接口
+OrderResult createOrder(OrderRequest request);
+
+// 不推荐: 细粒度接口
+long createOrderBasic(OrderBasic basic);
+boolean addOrderItems(long orderId, List<OrderItem> items);
+boolean addOrderPayment(long orderId, PaymentInfo payment);
+                </pre>
+              </div>
+              
+              <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-800">
+                <h4 class="font-bold">2. 合理配置超时和重试机制</h4>
+                <p>根据业务场景设置适当的超时时间和重试策略，避免因网络波动等问题导致服务不可用。</p>
+                <pre class="bg-gray-900 text-white p-2 rounded-lg mt-2 text-sm">
+// 为查询类服务设置较短超时时间
+@DubboReference(timeout = 1000, retries = 2, cluster = "failfast")
+private QueryService queryService;
+
+// 为事务类服务避免不必要的重试
+@DubboReference(timeout = 5000, retries = 0, cluster = "failfast")
+private OrderService orderService;
+                </pre>
+              </div>
+              
+              <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-800">
+                <h4 class="font-bold">3. 使用异步调用提高系统吞吐量</h4>
+                <p>在高并发场景下，采用Dubbo提供的异步调用机制，避免线程阻塞，提高系统整体吞吐量。</p>
+                <pre class="bg-gray-900 text-white p-2 rounded-lg mt-2 text-sm">
+// 使用CompletableFuture实现异步调用
+@DubboService
+public class AsyncServiceImpl implements AsyncService {
+    @Override
+    public CompletableFuture<String> sayHello(String name) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return "Hello " + name;
+        });
+    }
+}
+
+// 消费端异步调用
+CompletableFuture<String> future = asyncService.sayHello("world");
+future.whenComplete((v, t) -> {
+    if (t != null) {
+        t.printStackTrace();
+    } else {
+        System.out.println("Result: " + v);
+    }
+});
+                </pre>
+              </div>
+              
+              <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-800">
+                <h4 class="font-bold">4. 采用服务分组和版本管理</h4>
+                <p>使用Dubbo的服务分组(group)和版本号(version)实现服务的灰度发布和A/B测试，保障系统平滑升级。</p>
+                <pre class="bg-gray-900 text-white p-2 rounded-lg mt-2 text-sm">
+// 提供者定义不同版本
+@DubboService(version = "1.0.0", group = "stable")
+public class UserServiceV1Impl implements UserService {
+    // 实现...
+}
+
+@DubboService(version = "2.0.0", group = "beta")
+public class UserServiceV2Impl implements UserService {
+    // 实现...
+}
+
+// 消费者选择对应版本
+@DubboReference(version = "1.0.0", group = "stable")
+private UserService stableUserService;
+
+@DubboReference(version = "2.0.0", group = "beta")
+private UserService betaUserService;
+                </pre>
+              </div>
+              
+              <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-800">
+                <h4 class="font-bold">5. 结合监控中心实现实时运维</h4>
+                <p>部署Dubbo Admin，对服务进行实时监控和动态配置，及时发现并解决生产环境中的问题。</p>
+                <pre class="bg-gray-900 text-white p-2 rounded-lg mt-2 text-sm">
+# 在docker-compose.yml中配置Dubbo Admin
+version: '3'
+services:
+  dubbo-admin:
+    image: apache/dubbo-admin
+    ports:
+      - "8080:8080"
+    environment:
+      - admin.registry.address=zookeeper://zookeeper:2181
+      - admin.config-center=zookeeper://zookeeper:2181
+      - admin.metadata-report.address=zookeeper://zookeeper:2181
+    depends_on:
+      - zookeeper
+  
+  zookeeper:
+    image: zookeeper:3.6
+    ports:
+      - "2181:2181"
+                </pre>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- 参考资料 -->
+        <section class="mb-8">
+          <div class="flex items-center mb-4 cursor-pointer collapsible-header" data-section="references">
+            <i class="mr-2" data-lucide="bookmark" width="24" height="24"></i>
+            <h2 class="text-2xl font-bold">参考资料</h2>
+            <i class="ml-2" data-lucide="chevron-down" width="20" height="20"></i>
+          </div>
+          <div class="collapsible-content active" id="references-content">
+            <h3 class="text-xl font-bold mb-3">官方文档与规范</h3>
+            <ul class="list-disc ml-6 mb-6">
+              <li class="mb-2">
+                <a href="https://dubbo.apache.org/zh-cn/" target="_blank" class="text-blue-600 hover:underline">Apache Dubbo官方文档</a> - Dubbo官方中文文档，包含架构、用法、API等全面资料
+              </li>
+              <li class="mb-2">
+                <a href="https://github.com/apache/dubbo" target="_blank" class="text-blue-600 hover:underline">Dubbo GitHub仓库</a> - 源码、示例和贡献指南
+              </li>
+              <li class="mb-2">
+                <a href="https://dubbo.apache.org/zh-cn/overview/what/overview/background/" target="_blank" class="text-blue-600 hover:underline">Dubbo设计文档</a> - 深入了解Dubbo的架构设计和原理
+              </li>
+            </ul>
+            
+            <h3 class="text-xl font-bold mb-3">分级学习路径</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div class="bg-white p-4 rounded-xl shadow">
+                <h4 class="font-bold text-center mb-2 bg-blue-800 text-white py-1 rounded">初级学习</h4>
+                <ul class="list-disc ml-4">
+                  <li class="mb-2">
+                    <a href="https://dubbo.apache.org/zh-cn/overview/quickstart/java/brief/" target="_blank" class="text-blue-600 hover:underline">Dubbo快速入门指南</a>
+                  </li>
+                  <li class="mb-2">
+                    <a href="https://start.dubbo.apache.org/bootstrap.html" target="_blank" class="text-blue-600 hover:underline">Dubbo项目脚手架</a>
+                  </li>
+                  <li class="mb-2">
+                    <a href="https://dubbo.apache.org/zh-cn/overview/tasks/develop/" target="_blank" class="text-blue-600 hover:underline">基础服务开发教程</a>
+                  </li>
+                </ul>
+              </div>
+              
+              <div class="bg-white p-4 rounded-xl shadow">
+                <h4 class="font-bold text-center mb-2 bg-blue-800 text-white py-1 rounded">中级学习</h4>
+                <ul class="list-disc ml-4">
+                  <li class="mb-2">
+                    <a href="https://dubbo.apache.org/zh-cn/overview/mannual/java-sdk/advanced-features-and-usage/service/" target="_blank" class="text-blue-600 hover:underline">高级特性与使用</a>
+                  </li>
+                  <li class="mb-2">
+                    <a href="https://dubbo.apache.org/zh-cn/overview/mannual/java-sdk/reference-manual/config/properties/" target="_blank" class="text-blue-600 hover:underline">配置参考手册</a>
+                  </li>
+                  <li class="mb-2">
+                    <a href="https://dubbo.apache.org/zh-cn/overview/tasks/deploy/" target="_blank" class="text-blue-600 hover:underline">部署与运维指南</a>
+                  </li>
+                </ul>
+              </div>
+              
+              <div class="bg-white p-4 rounded-xl shadow">
+                <h4 class="font-bold text-center mb-2 bg-blue-800 text-white py-1 rounded">高级学习</h4>
+                <ul class="list-disc ml-4">
+                  <li class="mb-2">
+                    <a href="https://dubbo.apache.org/zh-cn/overview/mannual/java-sdk/advanced-features-and-usage/performance/" target="_blank" class="text-blue-600 hover:underline">性能调优</a>
+                  </li>
+                  <li class="mb-2">
+                    <a href="https://dubbo.apache.org/zh-cn/overview/mannual/java-sdk/reference-manual/spi/" target="_blank" class="text-blue-600 hover:underline">SPI扩展机制详解</a>
+                  </li>
+                  <li class="mb-2">
+                    <a href="https://dubbo.apache.org/zh-cn/overview/mannual/java-sdk/advanced-features-and-usage/service/multi-protocols/" target="_blank" class="text-blue-600 hover:underline">多协议支持和Triple协议</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            
+            <h3 class="text-xl font-bold mb-3">相关社区资源</h3>
+            <ul class="list-disc ml-6 mb-6">
+              <li class="mb-2">
+                <a href="https://github.com/apache/dubbo-samples" target="_blank" class="text-blue-600 hover:underline">Dubbo示例代码库</a> - 各种场景的Dubbo使用示例
+              </li>
+              <li class="mb-2">
+                <a href="https://github.com/apache/dubbo-admin" target="_blank" class="text-blue-600 hover:underline">Dubbo Admin管理控制台</a> - 服务治理和监控平台
+              </li>
+              <li class="mb-2">
+                <a href="https://github.com/apache/dubbo-spring-boot-project" target="_blank" class="text-blue-600 hover:underline">Dubbo Spring Boot Starter</a> - Spring Boot集成
+              </li>
+              <li class="mb-2">
+                <a href="https://dubbo.apache.org/zh-cn/blog/2018/08/07/dubbo%E5%BC%80%E5%8F%91%E8%80%85%E8%81%8A%E5%A4%A9%E5%AE%A4/" target="_blank" class="text-blue-600 hover:underline">Dubbo社区交流群</a> - 开发者交流与问题解答
+              </li>
+            </ul>
+            
+            <h3 class="text-xl font-bold mb-3">延伸阅读</h3>
+            <ul class="list-disc ml-6">
+              <li class="mb-2">
+                <a href="https://dubbo.apache.org/zh-cn/blog/2018/10/05/%E5%A6%82%E4%BD%95%E8%AF%84%E4%BC%B0%E4%B8%80%E4%B8%AARPC%E6%A1%86%E6%9E%B6/" target="_blank" class="text-blue-600 hover:underline">如何评估一个RPC框架</a> - 深入了解RPC框架的评估标准
+              </li>
+
+              <li class="mb-2">
+                <a href="https://dubbo.apache.org/zh-cn/blog/2018/08/01/dubbo-meetup/" target="_blank" class="text-blue-600 hover:underline">Dubbo在大规模微服务实践中的应用</a> - 行业实践案例
+              </li>
+              <li class="mb-2">
+                <a href="https://dubbo.apache.org/zh-cn/overview/what/ecosystem/kubernetes/" target="_blank" class="text-blue-600 hover:underline">Dubbo与云原生</a> - Dubbo在Kubernetes环境下的部署与实践
+              </li>
+              <li class="mb-2">
+                <a href="https://dubbo.apache.org/zh-cn/overview/mannual/java-sdk/advanced-features-and-usage/performance/benchmark/" target="_blank" class="text-blue-600 hover:underline">Dubbo性能基准测试</a> - 性能测试报告与对比
+              </li>
+              <li class="mb-2">
+                <a href="https://dubbo.apache.org/zh-cn/blog/2023/01/16/dubbo3%E6%96%B0%E7%89%88%E6%9C%ACtriple%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E8%80%85%E6%8C%87%E5%8D%97/" target="_blank" class="text-blue-600 hover:underline">Dubbo3 Triple协议开发者指南</a> - 新一代RPC协议详解
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // 初始化Mermaid
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'neutral',
+        securityLevel: 'loose'
+      });
+      
+      // 初始化Lucide图标
+      lucide.createIcons();
+      
+      // 可折叠区域交互
+      document.querySelectorAll('.collapsible-header').forEach(header => {
+        header.addEventListener('click', function() {
+          const section = this.getAttribute('data-section');
+          const content = document.getElementById(`${section}-content`);
+          content.classList.toggle('active');
+          
+          const icon = this.querySelector('[data-lucide="chevron-down"]');
+          if (content.classList.contains('active')) {
+            icon.style.transform = 'rotate(0deg)';
+          } else {
+            icon.style.transform = 'rotate(-90deg)';
+          }
+        });
+      });
+      
+      // 初始化代码复制按钮
+      document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const codeBlock = this.parentElement.querySelector('pre');
+          const code = codeBlock.textContent;
+          
+          navigator.clipboard.writeText(code).then(() => {
+            this.textContent = '已复制!';
+            setTimeout(() => {
+              this.textContent = '复制代码';
+            }, 2000);
+          });
+        });
+      });
+      
+      // 初始化在线试用按钮
+      document.querySelectorAll('.try-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const codeBlock = this.parentElement.querySelector('pre');
+          const code = codeBlock.textContent;
+          
+          // 根据语言打开不同的在线编辑器
+          if (codeBlock.className.includes('java')) {
+            window.open(`https://www.jdoodle.com/online-java-compiler/?code=${encodeURIComponent(code)}`);
+          } else if (codeBlock.className.includes('xml')) {
+            window.open(`https://codebeautify.org/xmlviewer?input=${encodeURIComponent(code)}`);
+          } else {
+            window.open(`https://codepen.io/pen/?editors=1000&html=${encodeURIComponent(code)}`);
+          }
+        });
+      });
+      
+      // 术语点击展开详情
+      document.querySelectorAll('.term-item').forEach(item => {
+        item.addEventListener('click', function() {
+          this.querySelector('.term-details').classList.toggle('hidden');
+        });
+      });
+    });
+  </script>
+</body>
+</html>
